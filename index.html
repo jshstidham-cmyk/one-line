@@ -292,6 +292,11 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 }
 .sidetabs,.detpill{display:none}
 #tLock.on{background:var(--hold-soft);border-color:var(--hold);color:var(--ink)}
+.autogrp{display:inline-flex}
+.autogrp #tAuto{border-top-right-radius:0;border-bottom-right-radius:0}
+.autogrp #tAutoLock{border-top-left-radius:0;border-bottom-left-radius:0;margin-left:-1px}
+#tAutoLock.on{background:var(--hold-soft);border-color:var(--hold);color:var(--hold)}
+#tAuto.autolocked{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--hold)}
 #app.locked .palette .pal{opacity:.38;pointer-events:none}
 #app.locked .palette::before{content:"Locked: view and walk only";display:block;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--hold);padding:2px 2px 6px}
 #app.locked svg#cv .linkhit{cursor:pointer}
@@ -398,7 +403,7 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
         <button class="btn sm" id="tLock" title="Lock the project against changes"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/><path id="lockShackle" d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span id="tLockLbl">Lock</span></button>
         <button class="btn sm" id="tColors" title="Voltage system colors"><span class="cdots" aria-hidden="true"><i></i><i></i><i></i></span>Colors</button>
         <span class="sep"></span>
-        <button class="btn sm" id="tAuto" title="Number switching devices top-to-bottom, left-to-right">Auto-number</button>
+        <span class="autogrp"><button class="btn sm" id="tAuto" title="Number switching devices top-to-bottom, left-to-right">Auto-number</button><button class="btn sm icon" id="tAutoLock" title="Lock Auto-number so the step order can't be renumbered by accident" aria-label="Lock Auto-number"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/><path id="autoShackle" d="M5.5 7V5a2.5 2.5 0 0 1 5 0" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></span>
         <button class="btn sm" id="tWalk" title="Step through the energization (W)">Walk sequence</button>
         <span class="sep"></span>
         <button class="btn sm icon" id="tUndo" title="Undo (Ctrl+Z)">↶</button>
@@ -517,6 +522,12 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
   <p class="help" id="lkNote" style="margin:0"></p>
   <p class="upmsg" id="lkErr" hidden style="margin:8px 0 0"></p>
   <div class="acts"><button class="btn" id="lkCancel">Cancel</button><button class="btn primary" id="lkGo">Lock</button></div>
+</dialog>
+<dialog id="dlgAuto" style="width:min(440px,calc(100vw - 24px))">
+  <h2>Auto-number is locked</h2>
+  <p class="help" style="margin-top:0">This project's step order is protected. Auto-number would renumber every switching device top to bottom and throw away the current order, including any order set from the schedule. Procedure steps stay put, but devices would not.</p>
+  <p class="help">To change one step, use ▲▼ in the sequence list or type a step number on the device. That still works while Auto-number is locked.</p>
+  <div class="acts"><button class="btn" id="alUnlock">Unlock Auto-number</button><button class="btn primary" id="alKeep">Keep it locked</button></div>
 </dialog>
 <dialog id="dlgDel">
   <h2>Delete this project?</h2>
@@ -659,7 +670,7 @@ function normalize(p) {
   q.nodes = (Array.isArray(q.nodes) ? q.nodes : []).filter(n => n && TYPES[n.type]).map(n => { const m = Object.assign(mkNode(n.type, +n.x||0, +n.y||0), n, {step: Math.max(0, parseInt(n.step)||0)}); if (STATEFUL.has(m.type) && !n.state) m.state = m.step > 0 ? 'open' : 'closed'; if (!STATEFUL.has(m.type)) m.state = ''; return m; });
   const ids = new Set(q.nodes.map(n => n.id));
   if (!q.colors || typeof q.colors !== 'object' || !q.colors.map) q.colors = userColorDefaults();
-  q.locked = !!q.locked; if (!q.locked) delete q.lockPin;
+  q.locked = !!q.locked; if (!q.locked) delete q.lockPin; q.autoLock = !!q.autoLock;
   q.links = (Array.isArray(q.links) ? q.links : []).filter(l => l && ids.has(l.from) && ids.has(l.to) && l.from !== l.to).map(l => Object.assign({id: l.id || uid('l'), from: l.from, to: l.to}, Array.isArray(l.bends) && l.bends.every(Number.isFinite) ? {bends: l.bends.slice()} : {}));
   renumber(q);
   return q;
@@ -1187,7 +1198,7 @@ function renderInspInner() {
       : `<button class="btn sm" id="bgUpload">Upload a one-line (PDF or image)…</button><p class="help" style="margin:6px 0 0">Trace over the engineer's one-line. It fades behind your drawing and saves with the project.</p>`}
     </div>
     <div class="help"><p><b>How to build:</b> add a Source, select it, then add a Breaker, a Bus, feeders and so on; each new device drops in below the selected one, already connected. Drag to arrange. Use <b>Connect</b> for extra ties. Drag any line to reroute it; double-click a line to reset it.</p>
-    <p class="appver">Energization One-Line · web app v2026.10.17.2</p><p><b>Order:</b> set a step number on each switching device, or hit Auto-number. Add non-device steps (walkdown, soak, release loads) with <b>+ Step</b>. Use ▲▼ to reorder. <b>Walk sequence</b> lights up what is energized at each step.</p></div>`;
+    <p class="appver">Energization One-Line · web app v2026.10.17.3</p><p><b>Order:</b> set a step number on each switching device, or hit Auto-number. Add non-device steps (walkdown, soak, release loads) with <b>+ Step</b>. Use ▲▼ to reorder. <b>Walk sequence</b> lights up what is energized at each step.</p></div>`;
     let typing = false; const tcommit = () => { if (!typing) { commit(); typing = true; setTimeout(() => typing = false, 1500); } };
     const bind = (id, k) => $('#' + id).addEventListener('input', e => { tcommit(); p[k] = e.target.value; changed({keepInsp: true, skipCanvas: true}); });
     bind('pDrawing', 'drawing'); bind('pRev', 'rev'); bind('pDate', 'date'); bind('pBy', 'by'); bind('pNotes', 'notes');
@@ -1329,7 +1340,8 @@ function renderProjectSelect() {
   if (document.activeElement !== $('#projName')) $('#projName').value = p.name;
 }
 function renderAll(o = {}) {
-  { const L = isLocked(); $('#app').classList.toggle('locked', L); $('#tLock').classList.toggle('on', L); $('#tLockLbl').textContent = L ? 'Locked' : 'Lock'; $('#tLock').title = L ? 'Locked: tap to unlock' : 'Lock the project against changes'; $('#lockShackle').setAttribute('d', L ? 'M5.5 7V5a2.5 2.5 0 0 1 5 0v2' : 'M5.5 7V5a2.5 2.5 0 0 1 5 0'); ['tConnect', 'tAuto', 'sAddProc'].forEach(id => { const b = $('#' + id); if (b) b.disabled = L; }); $('#projName').readOnly = L; if (L && S.mode === 'connect') S.mode = 'select'; }
+  { const L = isLocked(); $('#app').classList.toggle('locked', L); $('#tLock').classList.toggle('on', L); $('#tLockLbl').textContent = L ? 'Locked' : 'Lock'; $('#tLock').title = L ? 'Locked: tap to unlock' : 'Lock the project against changes'; $('#lockShackle').setAttribute('d', L ? 'M5.5 7V5a2.5 2.5 0 0 1 5 0v2' : 'M5.5 7V5a2.5 2.5 0 0 1 5 0'); ['tConnect', 'tAuto', 'sAddProc'].forEach(id => { const b = $('#' + id); if (b) b.disabled = L; });
+    { const A = !!(P() && P().autoLock); $('#tAutoLock').classList.toggle('on', A); $('#tAutoLock').disabled = L; $('#tAuto').classList.toggle('autolocked', A); $('#autoShackle').setAttribute('d', A ? 'M5.5 7V5a2.5 2.5 0 0 1 5 0v2' : 'M5.5 7V5a2.5 2.5 0 0 1 5 0'); $('#tAutoLock').title = A ? 'Auto-number is locked to protect the step order. Click to unlock.' : 'Lock Auto-number so the step order can\'t be renumbered by accident'; $('#tAuto').title = A ? 'Auto-number is locked (protects the scheduled step order)' : 'Number switching devices top-to-bottom, left-to-right'; } $('#projName').readOnly = L; if (L && S.mode === 'connect') S.mode = 'select'; }
   if (!o.skipCanvas) renderCanvas();
   { const pill = $('#detPill'); if (pill) pill.hidden = !(S.sel && !S.walk.on); }
   renderSeq(); if (!o.keepInsp) renderInsp(); renderWalk(); renderProjectSelect();
@@ -1426,6 +1438,7 @@ function alignSel(how) {
 }
 function autoNumber() {
   if (guardLocked()) return;
+  if (P().autoLock) { openAutoLock(); return; }
   commit(); const p = P();
   const old = seq();
   const procs = old.filter(n => TYPES[n.type].proc).map(n => ({n, before: old.slice(0, old.indexOf(n)).filter(x => !TYPES[x.type].proc).length}));
@@ -1590,6 +1603,10 @@ $('#tSelect').onclick = () => setMode('select');
 $('#tConnect').onclick = () => { if (guardLocked()) return; setMode(S.mode === 'connect' ? 'select' : 'connect'); };
 $('#tBox').onclick = () => setMode(S.mode === 'box' ? 'select' : 'box');
 $('#tAuto').onclick = autoNumber;
+function openAutoLock() { $('#dlgAuto').showModal(); }
+$('#tAutoLock').onclick = () => { if (guardLocked()) return; if (P().autoLock) { openAutoLock(); return; } P().autoLock = true; changed({keepInsp: true}); toast('Auto-number locked. The step order is protected.'); };
+$('#alKeep').onclick = () => $('#dlgAuto').close();
+$('#alUnlock').onclick = () => { $('#dlgAuto').close(); if (guardLocked()) return; P().autoLock = false; changed({keepInsp: true}); toast('Auto-number unlocked'); };
 $('#tSched').onclick = openSchedule;
 $('#uploadBtn').onclick = () => openUpload();
 const setTab = t => { $('#side').dataset.tab = t; document.querySelectorAll('[data-stab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.stab === t))); };
@@ -2082,7 +2099,7 @@ function insertLineup(kind, o) {
   S.sel = {kind: 'node', id: anchor.id}; S.scrollSeq = true; changed(); fitView();
   toast(`${L.name} inserted: ${nodes.length} devices${o.number ? ', steps ' + (steps[0].step) + '–' + steps[steps.length - 1].step : ''}`);
 }
-window.__eol = {exportSVG, exportCSV, insertLineup, makePDF, linkPts, routeRaw, get view() { return S.view; }, get project() { return P(); }};
+window.__eol = {exportSVG, exportCSV, insertLineup, makePDF, linkPts, routeRaw, liveMap, get view() { return S.view; }, get project() { return P(); }};
 /* ───────── lock ───────── */
 async function pinHash(pin, salt) {
   const txt = 'eol:' + salt + ':' + pin;
