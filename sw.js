@@ -1,5 +1,5 @@
 // Energization One-Line service worker: keeps the app working with no signal.
-const VERSION = 'eol-2026.10.17-1';
+const VERSION = 'eol-2026.10.17.2-1';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-32.png', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 const PDFJS = ['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'];
 const RUNTIME = 'eol-runtime';

@@ -226,6 +226,8 @@ svg#cv.walk .cur .badge circle{stroke-width:3;stroke:var(--live)}
 .row .ra{display:flex;gap:3px;align-items:center}
 .row .ra button{border:1px solid var(--line-2);background:var(--panel);border-radius:5px;padding:2px 6px;font-size:11px;line-height:1.4}
 .row .ra button:hover{border-color:var(--accent)}
+.row .ra button:disabled{opacity:.3;cursor:default}
+.btn:disabled,.btn[disabled]{opacity:.45;cursor:default}
 .chip{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
 .chip.done{color:var(--ok);border-color:var(--ok)!important;background:var(--ok-soft)!important}
 .seqlist .none{padding:14px 8px;color:var(--muted);font-size:13px}
@@ -289,6 +291,13 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
   .status{white-space:normal;flex-basis:100%}
 }
 .sidetabs,.detpill{display:none}
+#tLock.on{background:var(--hold-soft);border-color:var(--hold);color:var(--ink)}
+#app.locked .palette .pal{opacity:.38;pointer-events:none}
+#app.locked .palette::before{content:"Locked: view and walk only";display:block;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--hold);padding:2px 2px 6px}
+#app.locked svg#cv .linkhit{cursor:pointer}
+#app.locked svg#cv .node{cursor:pointer}
+.lockbar{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--hold-soft);border:1px solid var(--hold);margin-bottom:10px;font-size:12.5px}
+.lockbar b{flex:1}
 @media (max-width:760px){
   .top{gap:6px;padding-block:6px}
   .brand span,.status{display:none}
@@ -386,6 +395,7 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
         <button class="btn sm" id="tBox" title="Drag a box to select several devices (B). Shift-click also adds to a selection.">Box select</button>
         <button class="btn sm" id="tConnect" title="Connect two devices (C)">Connect</button>
         <button class="btn sm" id="tSched" title="Edit every device in a grid">Schedule</button>
+        <button class="btn sm" id="tLock" title="Lock the project against changes"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/><path id="lockShackle" d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span id="tLockLbl">Lock</span></button>
         <button class="btn sm" id="tColors" title="Voltage system colors"><span class="cdots" aria-hidden="true"><i></i><i></i><i></i></span>Colors</button>
         <span class="sep"></span>
         <button class="btn sm" id="tAuto" title="Number switching devices top-to-bottom, left-to-right">Auto-number</button>
@@ -458,7 +468,7 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
   <div class="head" style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><h2 style="margin:0;flex:1">Equipment schedule</h2><span class="help" id="schedCount"></span><button class="btn sm" id="schedCsv">Copy as CSV</button><button class="btn sm" id="schedClose">Close</button></div>
   <p class="help" style="margin:0 0 8px">Every device on the drawing. Edit any cell; changes apply at once. Type a value or pick from the list in the rating columns.</p>
   <div class="schedwrap"><table class="sched" id="schedTable"></table></div>
-  <datalist id="dlVolts"></datalist><datalist id="dlAmps"></datalist><datalist id="dlKva"></datalist>
+  <datalist id="dlVolts"></datalist><datalist id="dlAmps"></datalist><datalist id="dlKva"></datalist><datalist id="dlKw"></datalist>
 </dialog>
 <dialog id="dlgTpl">
   <h2>Save as template</h2>
@@ -500,6 +510,14 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
     <p><b>AutoCAD (DWG/DXF)</b> can't be read here. Ask for a PDF, or plot the sheet to PDF and upload that.</p>
   </div>
 </dialog>
+<dialog id="dlgLock" style="width:min(460px,calc(100vw - 24px))">
+  <h2 id="lkTitle">Lock this project</h2>
+  <p class="help" id="lkHelp" style="margin-top:0"></p>
+  <div class="f" id="lkPinRow"><label for="lkPin" id="lkPinLbl">PIN to unlock (optional)</label><input type="password" inputmode="numeric" id="lkPin" autocomplete="off" maxlength="12" placeholder="Leave blank for no PIN"></div>
+  <p class="help" id="lkNote" style="margin:0"></p>
+  <p class="upmsg" id="lkErr" hidden style="margin:8px 0 0"></p>
+  <div class="acts"><button class="btn" id="lkCancel">Cancel</button><button class="btn primary" id="lkGo">Lock</button></div>
+</dialog>
 <dialog id="dlgDel">
   <h2>Delete this project?</h2>
   <p id="delMsg" style="margin:0"></p>
@@ -534,6 +552,7 @@ const TYPES = {
   ups:         {name:'UPS',              hint:'Static UPS',          w:60, h:30},
   vfd:         {name:'VFD',              hint:'Drive, soft start',   w:60, h:30},
   cap:         {name:'Capacitor bank',   hint:'PF correction',       w:28, h:28},
+  loadbank:    {name:'Load bank',        hint:'Resistive / reactive test load', w:52, h:32},
   ground:      {name:'Temporary ground', hint:'Removal is a step',   w:26, h:24, gnd:true},
   proc:        {name:'Procedure step',   hint:'Not drawn',           w:0,  h:0, proc:true},
 };
@@ -550,15 +569,19 @@ function effState(n, cur) {
 }
 const VOLTS = ['34.5kV', '13.8kV', '4.16kV', '480/277V', '208/120V', '125VDC'];
 const AMPS = ['4000A', '3000A', '2000A', '1600A', '1200A', '800A', '600A', '400A', '200A', '150A', '100A', '60A', '30A'];
+const KWS = ['50', '100', '150', '200', '250', '300', '400', '500', '750', '1000', '1250', '1500', '2000', '2500', '3000'];
+const KW_TYPES = new Set(['loadbank']);
 const KVAS = ['15', '30', '45', '75', '112.5', '150', '225', '300', '500', '750', '1000', '1500', '2000', '2500', '3000', '3750', '5000', '7500', '10000'];
-const ratingText = n => XF.has(n.type) ? (n.kva ? n.kva + ' kVA' : '') : (n.amps || '');
+const ratingText = n => XF.has(n.type) ? (n.kva ? n.kva + ' kVA' : '') : KW_TYPES.has(n.type) ? (n.kw ? n.kw + ' kW' : '') : (n.amps || '');
 const voltText = n => XF.has(n.type) ? [n.volt, n.volt2].filter(Boolean).join(' – ') : (n.volt || '');
 function subText(n) { if (TYPES[n.type].proc) return n.sub || ''; return [voltText(n), ratingText(n), n.sub].filter(Boolean).join(' · '); }
 const optList = (list, val) => '<option value="">—</option>' + (val && !list.includes(val) ? `<option selected>${esc(val)}</option>` : '') + list.map(v => `<option${v === val ? ' selected' : ''}>${v}</option>`).join('') + '<option value="__other">Other…</option>';
+const kwOpts = val => optList(KWS, val).replace(/<option( selected)?>([\d.,]+)<\/option>/g, '<option value="$2"$1>$2 kW</option>');
 const kvaOpts = val => optList(KVAS, val).replace(/<option( selected)?>([\d.,]+)<\/option>/g, '<option value="$2"$1>$2 kVA</option>');
 const NORM = {
   amps: v => /^\d+(\.\d+)?$/.test(v) ? v + 'A' : v,
   kva: v => v.replace(/\s*kva$/i, ''),
+  kw: v => v.replace(/\s*kw$/i, ''),
   volt: v => /^\d+(\.\d+)?$/.test(v) ? v + 'V' : v,
 };
 // Swap a dropdown for a text box when "Other…" is picked; apply(value) runs when the entry is finished.
@@ -591,7 +614,7 @@ function blankProject(name) {
   return {id: uid('p'), name: name || 'Untitled project', drawing: '', rev: '0', date: today(), by: '', notes: '', nodes: [], links: [], colors: userColorDefaults(), updatedAt: new Date().toISOString(), v: 1};
 }
 function mkNode(type, x, y, o = {}) {
-  return Object.assign({id: uid(), type, x: snap(x), y: snap(y), label: TYPES[type].name, sub: '', volt: '', volt2: '', amps: '', kva: '', w: type==='bus' ? 240 : 0, labelSide: 'r',
+  return Object.assign({id: uid(), type, x: snap(x), y: snap(y), label: TYPES[type].name, sub: '', volt: '', volt2: '', amps: '', kva: '', kw: '', w: type==='bus' ? 240 : 0, labelSide: 'r',
     badgePos: 'auto', state: STATEFUL.has(type) ? 'open' : '', step: 0, hold: false, stayOpen: false, action: '', verify: '', by: '', witness: '', status: 'pending', notes: ''}, o);
 }
 function templateProject() {
@@ -636,11 +659,14 @@ function normalize(p) {
   q.nodes = (Array.isArray(q.nodes) ? q.nodes : []).filter(n => n && TYPES[n.type]).map(n => { const m = Object.assign(mkNode(n.type, +n.x||0, +n.y||0), n, {step: Math.max(0, parseInt(n.step)||0)}); if (STATEFUL.has(m.type) && !n.state) m.state = m.step > 0 ? 'open' : 'closed'; if (!STATEFUL.has(m.type)) m.state = ''; return m; });
   const ids = new Set(q.nodes.map(n => n.id));
   if (!q.colors || typeof q.colors !== 'object' || !q.colors.map) q.colors = userColorDefaults();
+  q.locked = !!q.locked; if (!q.locked) delete q.lockPin;
   q.links = (Array.isArray(q.links) ? q.links : []).filter(l => l && ids.has(l.from) && ids.has(l.to) && l.from !== l.to).map(l => Object.assign({id: l.id || uid('l'), from: l.from, to: l.to}, Array.isArray(l.bends) && l.bends.every(Number.isFinite) ? {bends: l.bends.slice()} : {}));
   renumber(q);
   return q;
 }
 const P = () => S.project;
+const isLocked = () => !!(S.project && S.project.locked);
+function guardLocked() { if (!isLocked()) return false; toast('This project is locked. Unlock it to make changes.'); return true; }
 const selIds = () => !S.sel ? [] : S.sel.kind === 'node' ? [S.sel.id] : S.sel.kind === 'nodes' ? S.sel.ids.slice() : [];
 const isSel = id => S.sel ? (S.sel.kind === 'node' ? S.sel.id === id : S.sel.kind === 'nodes' && S.sel.ids.includes(id)) : false;
 function setSel(ids) { ids = [...new Set(ids)].filter(id => node(id)); S.sel = ids.length === 0 ? null : ids.length === 1 ? {kind: 'node', id: ids[0]} : {kind: 'nodes', ids}; }
@@ -942,6 +968,7 @@ function symbol(n, st) {
     case 'ups': return `<rect x="-30" y="-15" width="60" height="30" rx="3" class="sym"/><text class="glyph" y="4.5" style="font-size:12px">UPS</text>`;
     case 'vfd': return `<rect x="-30" y="-15" width="60" height="30" rx="3" class="sym"/><text class="glyph" y="4.5" style="font-size:12px">VFD</text>`;
     case 'cap': return `<line x1="0" y1="-14" x2="0" y2="-4" class="sym"/><line x1="-10" y1="-4" x2="10" y2="-4" class="sym"/><line x1="-10" y1="2" x2="10" y2="2" class="sym"/><line x1="0" y1="2" x2="0" y2="8" class="sym"/><path d="M-7 8h14M-4 11h8M-1 14h2" class="sym"/>`;
+    case 'loadbank': return `<rect x="-26" y="-16" width="52" height="32" rx="3" class="sym"/><path d="M-19 0h5l3-7 5 14 5-14 5 14 5-14 3 7h7" class="sym thin"/><text class="port" x="0" y="13" style="font-size:7.5px;font-weight:700">LB</text>`;
     case 'ground': return `<line x1="0" y1="-12" x2="0" y2="-2" class="sym"/><path d="M-11 -2h22M-7 4h14M-3 10h6" class="sym"/><rect x="-13" y="-6" width="26" height="18" class="gndbox"/>`;
     case 'fuse': return `<rect x="-5" y="-14" width="10" height="28" class="sym"/><line x1="0" y1="-14" x2="0" y2="14" class="sym thin"/>`;
     case 'transformer': return `<circle cy="-11" r="14" class="sym"/><circle cy="11" r="14" class="sym"/>`;
@@ -998,7 +1025,7 @@ function nodeSVG(n, o = {}) {
   }
   if (o.sel) {
     s += `<rect class="selbox" x="${bb.x - n.x - 6}" y="${bb.y - n.y - 6}" width="${bb.w + 12}" height="${bb.h + 12}" rx="4"/>`;
-    if (n.type === 'bus') s += `<rect class="handle" data-handle="busw" x="${g.w / 2 - 4}" y="-5" width="9" height="10"/>`;
+    if (n.type === 'bus' && !isLocked()) s += `<rect class="handle" data-handle="busw" x="${g.w / 2 - 4}" y="-5" width="9" height="10"/>`;
   }
   return s + '</g>';
 }
@@ -1021,7 +1048,7 @@ function renderCanvas() {
     const cls = ['link-g']; if (selL) cls.push('sel'); if (live && live.get(l.from)) cls.push('live');
     const c = !selL && showCol(l.from) ? screenColor(voltColor((SV.get(l.from) || {}).out)) : null;
     out += `<g class="${cls.join(' ')}" data-link="${l.id}"><path class="linkhit" d="${d}"/><path class="link" d="${d}"${c ? ` style="stroke:${c}"` : ''}/>`;
-    if (selL) { const pts = linkPts(l) || []; for (let i = 0; i < pts.length - 1; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[i + 1]; if (Math.hypot(x2 - x1, y2 - y1) < 14) continue; const h = Math.abs(y1 - y2) < .5; out += `<rect class="seghandle ${h ? 'h' : 'v'}" x="${(x1 + x2) / 2 - (h ? 7 : 4)}" y="${(y1 + y2) / 2 - (h ? 4 : 7)}" width="${h ? 14 : 8}" height="${h ? 8 : 14}" rx="2"/>`; } }
+    if (selL && !isLocked()) { const pts = linkPts(l) || []; for (let i = 0; i < pts.length - 1; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[i + 1]; if (Math.hypot(x2 - x1, y2 - y1) < 14) continue; const h = Math.abs(y1 - y2) < .5; out += `<rect class="seghandle ${h ? 'h' : 'v'}" x="${(x1 + x2) / 2 - (h ? 7 : 4)}" y="${(y1 + y2) / 2 - (h ? 4 : 7)}" width="${h ? 14 : 8}" height="${h ? 8 : 14}" rx="2"/>`; } }
     out += `</g>`;
   }
   for (const n of p.nodes) {
@@ -1044,7 +1071,7 @@ function renderSeq() {
     return `<div class="row${sel ? ' sel' : ''}" data-seq="${n.id}" role="button" tabindex="0">
       <div class="n${n.hold ? ' hold' : ''}${n.status === 'done' ? ' done' : ''}">${n.step}</div>
       <div class="m"><div class="t">${esc(n.label)}${TYPES[n.type].proc ? '<span class="proc">procedure</span>' : ''}${n.hold ? '<span class="proc" style="color:var(--hold)">hold point</span>' : ''}</div><div class="a">${esc(n.action || (TYPES[n.type].proc ? '' : 'Close ' + n.label))}</div></div>
-      <div class="ra"><button data-act="up" title="Move earlier" aria-label="Move earlier">▲</button><button data-act="down" title="Move later" aria-label="Move later">▼</button><button data-act="status" class="chip${n.status === 'done' ? ' done' : ''}" title="Toggle done">${n.status === 'done' ? 'done' : 'open'}</button></div>
+      <div class="ra"><button data-act="up" title="Move earlier" aria-label="Move earlier"${isLocked() ? ' disabled' : ''}>▲</button><button data-act="down" title="Move later" aria-label="Move later"${isLocked() ? ' disabled' : ''}>▼</button><button data-act="status" class="chip${n.status === 'done' ? ' done' : ''}" title="Toggle done">${n.status === 'done' ? 'done' : 'open'}</button></div>
     </div>`;
   }).join('');
   const r = el.querySelector('.row.sel'); if (r && S.scrollSeq) { r.scrollIntoView({block: 'nearest'}); S.scrollSeq = false; }
@@ -1054,6 +1081,14 @@ function renderSeq() {
 function field(label, id, val, type = 'text', extra = '') { return `<div class="f"><label for="${id}">${label}</label><input type="${type}" id="${id}" value="${esc(val)}" ${extra}></div>`; }
 function area(label, id, val, rows = 2) { return `<div class="f"><label for="${id}">${label}</label><textarea id="${id}" rows="${rows}">${esc(val)}</textarea></div>`; }
 function renderInsp() {
+  renderInspInner();
+  if (!isLocked()) return;
+  const el = $('#insp');
+  el.querySelectorAll('input,select,textarea,button').forEach(x => { if (!x.hasAttribute('data-keep')) x.disabled = true; });
+  el.insertAdjacentHTML('afterbegin', `<div class="lockbar"><b>Locked: viewing only</b><button class="btn sm" data-keep id="inspUnlock">Unlock</button></div>`);
+  $('#inspUnlock').onclick = openLock;
+}
+function renderInspInner() {
   const el = $('#insp'); const p = P();
   if (S.sel && S.sel.kind === 'link') {
     const l = p.links.find(x => x.id === S.sel.id); if (!l) { S.sel = null; return renderInsp(); }
@@ -1078,7 +1113,7 @@ function renderInsp() {
       <div class="acts"><button class="btn sm" id="mCopy">Copy</button><button class="btn sm" id="mSeq">Add all to sequence</button><button class="btn sm danger" id="mDel">Delete ${ns.length}</button></div>
       <p class="help" style="margin:8px 0 0">Shift-click adds or removes a device. Drag any selected device to move them all. Ctrl+C / Ctrl+V copies and pastes with connections.</p>`;
     el.querySelectorAll('[data-align]').forEach(b => b.onclick = () => alignSel(b.dataset.align));
-    const bulk = (id, key, norm) => $('#' + id).addEventListener('change', e => { const t = e.target; if (t.value === '__other') return onOther(t, v => { if (v) { commit(); ns.forEach(n => { if (!(key === 'amps' && XF.has(n.type))) n[key] = norm(v); }); } changed(); }); if (!t.value) return; commit(); ns.forEach(n => { if (!(key === 'amps' && XF.has(n.type))) n[key] = t.value; }); changed({keepInsp: true}); });
+    const bulk = (id, key, norm) => $('#' + id).addEventListener('change', e => { const t = e.target; if (t.value === '__other') return onOther(t, v => { if (v) { commit(); ns.forEach(n => { if (!(key === 'amps' && (XF.has(n.type) || KW_TYPES.has(n.type)))) n[key] = norm(v); }); } changed(); }); if (!t.value) return; commit(); ns.forEach(n => { if (!(key === 'amps' && (XF.has(n.type) || KW_TYPES.has(n.type)))) n[key] = t.value; }); changed({keepInsp: true}); });
     bulk('mVolt', 'volt', NORM.volt); bulk('mAmps', 'amps', NORM.amps);
     $('#mBy').addEventListener('change', e => { commit(); ns.forEach(n => n.by = e.target.value); changed({keepInsp: true}); });
     $('#mWit').addEventListener('change', e => { commit(); ns.forEach(n => n.witness = e.target.value); changed({keepInsp: true}); });
@@ -1094,6 +1129,7 @@ function renderInsp() {
       ${field('Label / tag', 'iLabel', n.label)}
       ${isProc ? '' : XF.has(n.type)
         ? `<div class="f2"><div class="f"><label for="iVolt">Primary voltage</label><select id="iVolt">${optList(VOLTS, n.volt)}</select></div><div class="f"><label for="iVolt2">Secondary voltage</label><select id="iVolt2">${optList(VOLTS, n.volt2)}</select></div></div>`
+        : KW_TYPES.has(n.type) ? `<div class="f2"><div class="f"><label for="iVolt">Voltage</label><select id="iVolt">${optList(VOLTS, n.volt)}</select></div><div class="f"><label for="iKw">Load rating</label><select id="iKw">${kwOpts(n.kw)}</select></div></div>`
         : `<div class="f2"><div class="f"><label for="iVolt">Voltage</label><select id="iVolt">${optList(VOLTS, n.volt)}</select></div><div class="f"><label for="iAmps">Current rating</label><select id="iAmps">${optList(AMPS, n.amps)}</select></div></div>`}
       ${!isProc && XF.has(n.type) ? `<div class="f2"><div class="f"><label for="iKva">kVA rating</label><select id="iKva">${kvaOpts(n.kva)}</select></div><div></div></div>` : ''}
       <div class="f2">${field(isProc ? 'Detail' : 'Note (printed after ratings)', 'iSub', n.sub)}
@@ -1105,7 +1141,7 @@ function renderInsp() {
           <button class="btn sm${inSeq ? '' : ' primary'}" id="iSeqBtn">${inSeq ? 'Remove' : 'Add as step ' + maxStep}</button></div>
         <label class="chk"><input type="checkbox" id="iHold"${n.hold ? ' checked' : ''}> Witnessed hold point</label>
         ${isProc ? '' : `<label class="chk"><input type="checkbox" id="iOpen"${n.stayOpen ? ' checked' : ''}> Stays open after this step (check or test only)</label>`}
-        <label class="chk"><input type="checkbox" id="iDone"${n.status === 'done' ? ' checked' : ''}> Done</label>
+        <label class="chk"><input type="checkbox" id="iDone" data-keep${n.status === 'done' ? ' checked' : ''}> Done</label>
       </div>
       ${area('Action', 'iAction', n.action)}
       ${area('Verify before next step', 'iVerify', n.verify)}
@@ -1120,13 +1156,13 @@ function renderInsp() {
       if (t.value === '__other') return onOther(t, v => { if (v !== null && v !== '') { commit(); n[key] = norm(v); } changed(); });
       commit(); n[key] = t.value; changed({keepInsp: true});
     }, 'change');
-    pick('iVolt', 'volt', NORM.volt); pick('iVolt2', 'volt2', NORM.volt); pick('iAmps', 'amps', NORM.amps); pick('iKva', 'kva', NORM.kva);
+    pick('iVolt', 'volt', NORM.volt); pick('iVolt2', 'volt2', NORM.volt); pick('iAmps', 'amps', NORM.amps); pick('iKva', 'kva', NORM.kva); pick('iKw', 'kw', NORM.kw);
     bind('iAction', t => { tcommit(); n.action = t.value; changed({keepInsp: true}); });
     bind('iVerify', t => { tcommit(); n.verify = t.value; changed({keepInsp: true}); });
     bind('iBy', t => { tcommit(); n.by = t.value; changed({keepInsp: true}); });
     bind('iWit', t => { tcommit(); n.witness = t.value; changed({keepInsp: true}); });
     bind('iNotes', t => { tcommit(); n.notes = t.value; changed({keepInsp: true}); });
-    bind('iType', t => { commit(); n.type = t.value; if (n.type === 'bus' && !n.w) n.w = 240; if (XF.has(n.type)) n.amps = ''; else { n.kva = ''; n.volt2 = ''; } n.state = STATEFUL.has(n.type) ? (n.state || 'open') : ''; changed(); }, 'change');
+    bind('iType', t => { commit(); n.type = t.value; if (n.type === 'bus' && !n.w) n.w = 240; if (XF.has(n.type)) n.amps = ''; else { n.kva = ''; n.volt2 = ''; } if (KW_TYPES.has(n.type)) n.amps = ''; else n.kw = ''; n.state = STATEFUL.has(n.type) ? (n.state || 'open') : ''; changed(); }, 'change');
     bind('iSide', t => { commit(); n.labelSide = t.value; changed({keepInsp: true}); }, 'change');
     bind('iState', t => { commit(); n.state = t.value; changed({keepInsp: true}); }, 'change');
     bind('iBadge', t => { commit(); n.badgePos = t.value; changed({keepInsp: true}); }, 'change');
@@ -1151,7 +1187,7 @@ function renderInsp() {
       : `<button class="btn sm" id="bgUpload">Upload a one-line (PDF or image)…</button><p class="help" style="margin:6px 0 0">Trace over the engineer's one-line. It fades behind your drawing and saves with the project.</p>`}
     </div>
     <div class="help"><p><b>How to build:</b> add a Source, select it, then add a Breaker, a Bus, feeders and so on; each new device drops in below the selected one, already connected. Drag to arrange. Use <b>Connect</b> for extra ties. Drag any line to reroute it; double-click a line to reset it.</p>
-    <p class="appver">Energization One-Line · web app v2026.10.17</p><p><b>Order:</b> set a step number on each switching device, or hit Auto-number. Add non-device steps (walkdown, soak, release loads) with <b>+ Step</b>. Use ▲▼ to reorder. <b>Walk sequence</b> lights up what is energized at each step.</p></div>`;
+    <p class="appver">Energization One-Line · web app v2026.10.17.2</p><p><b>Order:</b> set a step number on each switching device, or hit Auto-number. Add non-device steps (walkdown, soak, release loads) with <b>+ Step</b>. Use ▲▼ to reorder. <b>Walk sequence</b> lights up what is energized at each step.</p></div>`;
     let typing = false; const tcommit = () => { if (!typing) { commit(); typing = true; setTimeout(() => typing = false, 1500); } };
     const bind = (id, k) => $('#' + id).addEventListener('input', e => { tcommit(); p[k] = e.target.value; changed({keepInsp: true, skipCanvas: true}); });
     bind('pDrawing', 'drawing'); bind('pRev', 'rev'); bind('pDate', 'date'); bind('pBy', 'by'); bind('pNotes', 'notes');
@@ -1247,7 +1283,7 @@ async function handleUpload(file) {
     } else { renderPdfPage(pdf, 1, 620).then(c => { const pv = $('#upPrev'); if (pv) pv.appendChild(c); }).catch(() => {}); }
     getCanvas = async () => renderPdfPage(pdf, S.up.page, store.usesDb() ? 2000 : 2800);
   }
-  body.insertAdjacentHTML('beforeend', `<div class="acts" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn primary" id="upNew">Start a new project traced over it</button><button class="btn" id="upBehind">Put it behind the current drawing</button></div><p class="help" id="upStatus" style="margin:6px 0 0"></p>`);
+  body.insertAdjacentHTML('beforeend', `<div class="acts" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn primary" id="upNew">Start a new project traced over it</button><button class="btn" id="upBehind"${isLocked() ? ' disabled title="This project is locked"' : ''}>Put it behind the current drawing</button></div><p class="help" id="upStatus" style="margin:6px 0 0"></p>`);
   const go = async asNew => {
     $('#upNew').disabled = $('#upBehind').disabled = true; $('#upStatus').textContent = 'Preparing the drawing…';
     try {
@@ -1293,16 +1329,18 @@ function renderProjectSelect() {
   if (document.activeElement !== $('#projName')) $('#projName').value = p.name;
 }
 function renderAll(o = {}) {
+  { const L = isLocked(); $('#app').classList.toggle('locked', L); $('#tLock').classList.toggle('on', L); $('#tLockLbl').textContent = L ? 'Locked' : 'Lock'; $('#tLock').title = L ? 'Locked: tap to unlock' : 'Lock the project against changes'; $('#lockShackle').setAttribute('d', L ? 'M5.5 7V5a2.5 2.5 0 0 1 5 0v2' : 'M5.5 7V5a2.5 2.5 0 0 1 5 0'); ['tConnect', 'tAuto', 'sAddProc'].forEach(id => { const b = $('#' + id); if (b) b.disabled = L; }); $('#projName').readOnly = L; if (L && S.mode === 'connect') S.mode = 'select'; }
   if (!o.skipCanvas) renderCanvas();
   { const pill = $('#detPill'); if (pill) pill.hidden = !(S.sel && !S.walk.on); }
   renderSeq(); if (!o.keepInsp) renderInsp(); renderWalk(); renderProjectSelect();
-  $('#tUndo').disabled = !S.hist.length; $('#tRedo').disabled = !S.future.length;
+  $('#tUndo').disabled = !S.hist.length || isLocked(); $('#tRedo').disabled = !S.future.length || isLocked();
   $('#tWalk').classList.toggle('on', S.walk.on); $('#tConnect').classList.toggle('on', S.mode === 'connect'); $('#tSelect').classList.toggle('on', S.mode === 'select'); $('#tBox').classList.toggle('on', S.mode === 'box');
   $('#hint').textContent = S.mode === 'connect' ? (S.connectFrom ? 'Now click the device it feeds. Esc cancels.' : 'Click the upstream device first.') : S.mode === 'box' ? 'Drag a box around devices. Shift-drag adds to the selection.' : S.walk.on ? (P().colors && P().colors.on ? 'Walk mode: colored and bold = energized, faded = dead.' : 'Walk mode: red = energized. Editing still works.') : S.sel && S.sel.kind === 'nodes' ? `${S.sel.ids.length} selected · Ctrl+C copies, Delete removes, arrows nudge` : '';
 }
 
 /* ───────── editing actions ───────── */
 function addDevice(type) {
+  if (guardLocked()) return;
   commit();
   const p = P(); let x = 200, y = 80, parent = null;
   if (S.sel && S.sel.kind === 'node') parent = node(S.sel.id);
@@ -1322,6 +1360,13 @@ function addDevice(type) {
   const n = mkNode(type, x, y, {});
   if (type === 'proc') { n.label = 'New step'; }
   if (type === 'ground') { n.label = 'Temp ground'; n.labelSide = 'b'; n.action = 'Remove temporary ground; log removal.'; n.verify = 'Ground off and accounted for on the grounds log'; if (parent && !TYPES[parent.type].proc) { n.x = snap(parent.type === 'bus' ? x : parent.x - 48); n.y = snap(parent.type === 'bus' ? parent.y + 40 : parent.y + 44); } }
+  if (!TYPES[type].proc) { // nudge right until it clears every neighbor
+    const hit = (a, b) => a.x < b.x + b.w + 14 && b.x < a.x + a.w + 14 && a.y < b.y + b.h + 10 && b.y < a.y + a.h + 10;
+    // symbol plus its label text, roughly
+    const box = m => { const b0 = bbox(m), ls = m.labelSide || 'r', tw = Math.max(m.label.length * 7.4, subText(m).length * 6.2) + 14; const b1 = {x: b0.x, y: b0.y, w: b0.w, h: b0.h};
+      if (m.type === 'bus') return b1; if (ls === 'r') b1.w += tw; else if (ls === 'l') { b1.x -= tw; b1.w += tw; } else if (ls === 'a') { b1.y -= 32; b1.h += 32; b1.x = Math.min(b1.x, m.x - tw / 2); b1.w = Math.max(b1.w, tw); } else { b1.h += 34; b1.x = Math.min(b1.x, m.x - tw / 2); b1.w = Math.max(b1.w, tw); } return b1; };
+    for (let i = 0; i < 60 && p.nodes.some(m => m !== parent && !TYPES[m.type].proc && m.type !== 'bus' && hit(box(m), box(n))); i++) n.x = snap(n.x + 40);
+  }
   p.nodes.push(n);
   if (type === 'ground') { const gs = seq().filter(g => TYPES[g.type].gnd); const first = seq()[0]; setStepPos(n, gs.length ? Math.max(...gs.map(g => g.step)) + 1 : (first && TYPES[first.type].proc ? 2 : 1)); }
   if (parent && !TYPES[parent.type].proc && !TYPES[type].proc && parent.type !== 'load' && parent.type !== 'motor') p.links.push({id: uid('l'), from: parent.id, to: n.id});
@@ -1331,9 +1376,11 @@ function addDevice(type) {
   }
   S.sel = {kind: 'node', id: n.id}; S.scrollSeq = true;
   changed();
+  if (!TYPES[type].proc && !isVisible(n)) centerOn(n);
   const lbl = $('#iLabel'); if (lbl && window.matchMedia('(min-width: 961px)').matches) { lbl.focus(); lbl.select(); }
 }
 function addProc() {
+  if (guardLocked()) return;
   commit();
   const n = mkNode('proc', 0, 0, {label: 'New step'}); P().nodes.push(n);
   const after = S.sel && S.sel.kind === 'node' ? node(S.sel.id) : null;
@@ -1342,6 +1389,7 @@ function addProc() {
   const lbl = $('#iLabel'); if (lbl) { lbl.focus(); lbl.select(); }
 }
 function deleteSelection() {
+  if (guardLocked()) return;
   if (!S.sel) return; commit(); const p = P();
   if (S.sel.kind === 'link') p.links = p.links.filter(l => l.id !== S.sel.id);
   else { const ids = new Set(selIds()); p.nodes = p.nodes.filter(n => !ids.has(n.id)); p.links = p.links.filter(l => !ids.has(l.from) && !ids.has(l.to)); renumber(); }
@@ -1354,6 +1402,7 @@ function copySel() {
   toast(`Copied ${nodes.length} device${nodes.length === 1 ? '' : 's'}`);
 }
 function pasteClip() {
+  if (guardLocked()) return;
   if (!S.clip) return; commit(); const map = {}; const p = P();
   const ns = S.clip.nodes.map(n => { const m = Object.assign({}, n, {id: uid(), x: n.x + 40, y: n.y + 40, step: 0, status: 'pending'}); map[n.id] = m.id; return m; });
   const nl = S.clip.links.map(l => Object.assign({id: uid('l'), from: map[l.from], to: map[l.to]}, l.bends ? {bends: l.bends.map(c => c + 40)} : {}));
@@ -1362,6 +1411,7 @@ function pasteClip() {
   setSel(ns.map(n => n.id)); changed();
 }
 function alignSel(how) {
+  if (guardLocked()) return;
   const ns = selIds().map(node).filter(n => n && !TYPES[n.type].proc); if (ns.length < 2) return; commit();
   const bs = ns.map(n => ({n, b: bbox(n)}));
   if (how === 'left') { const x = Math.min(...bs.map(o => o.b.x)); bs.forEach(o => o.n.x = snap(x + o.b.w / 2)); }
@@ -1375,6 +1425,7 @@ function alignSel(how) {
   changed({keepInsp: true});
 }
 function autoNumber() {
+  if (guardLocked()) return;
   commit(); const p = P();
   const old = seq();
   const procs = old.filter(n => TYPES[n.type].proc).map(n => ({n, before: old.slice(0, old.indexOf(n)).filter(x => !TYPES[x.type].proc).length}));
@@ -1385,6 +1436,7 @@ function autoNumber() {
   changed(); toast(`Numbered ${devs.length} switching devices top to bottom${procs.length ? '; procedure steps kept in place' : ''}`);
 }
 function moveStep(n, dir) {
+  if (guardLocked()) return;
   const list = seq(); const i = list.indexOf(n); const j = i + dir; if (j < 0 || j >= list.length) return;
   commit(); [list[i].step, list[j].step] = [list[j].step, list[i].step]; changed();
 }
@@ -1429,6 +1481,11 @@ svg.addEventListener('pointerdown', e => {
   const hEl = e.target.closest('[data-handle]'), nEl = e.target.closest('[data-node]'), lEl = e.target.closest('[data-link]');
   const r = svg.getBoundingClientRect(); const wx = (e.clientX - r.left - S.view.x) / S.view.k, wy = (e.clientY - r.top - S.view.y) / S.view.k;
   try { svg.setPointerCapture(e.pointerId); } catch {}
+  if (isLocked() && (nEl || lEl)) {
+    if (nEl) { const id = nEl.dataset.node; if (e.shiftKey) { const cur = selIds(); setSel(cur.includes(id) ? cur.filter(x => x !== id) : cur.concat(id)); } else { S.sel = {kind: 'node', id}; S.scrollSeq = true; } }
+    else S.sel = {kind: 'link', id: lEl.dataset.link};
+    renderAll(); drag = {kind: 'none'}; return;
+  }
   if (hEl) { const n = node(nEl.dataset.node); drag = {kind: 'busw', n, start: n.w, wx, committed: false}; return; }
   if (nEl) {
     const id = nEl.dataset.node;
@@ -1448,7 +1505,7 @@ svg.addEventListener('pointerdown', e => {
     drag = sIdx < 0 ? {kind: 'none'} : {kind: 'seg', l, r, F: explicitBends(r), s: sIdx, ax: segAxis(r.a1, sIdx), wx, wy, start: l.bends ? l.bends.slice() : null, committed: false};
     return;
   }
-  if (S.bgMove && P().bg) { drag = {kind: 'bg', wx, wy, bx: P().bg.x, by: P().bg.y, committed: false}; return; }
+  if (S.bgMove && P().bg && !isLocked()) { drag = {kind: 'bg', wx, wy, bx: P().bg.x, by: P().bg.y, committed: false}; return; }
   if (S.mode === 'box' || e.shiftKey) { drag = {kind: 'marquee', add: e.shiftKey ? selIds() : [], x0: wx, y0: wy}; S.marquee = {x0: wx, y0: wy, x1: wx, y1: wy}; return; }
   drag = {kind: 'pan', sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y, moved: false}; svg.classList.add('pan');
 });
@@ -1500,12 +1557,13 @@ const endDrag = e => {
 };
 svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
 svg.addEventListener('wheel', e => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - r.left, e.clientY - r.top); }, {passive: false});
-svg.addEventListener('dblclick', e => { const hitEl = document.elementFromPoint(e.clientX, e.clientY) || e.target; const lEl = hitEl.closest('[data-link]'); if (lEl) { const l = P().links.find(x => x.id === lEl.dataset.link); if (l && l.bends) { commit(); delete l.bends; changed(); toast('Line rerouted automatically'); } return; } const nEl = hitEl.closest('[data-node]'); if (nEl) { const l = $('#iLabel'); if (l) { l.focus(); l.select(); } } });
+svg.addEventListener('dblclick', e => { const hitEl = document.elementFromPoint(e.clientX, e.clientY) || e.target; const lEl = hitEl.closest('[data-link]'); if (lEl) { if (isLocked()) return; const l = P().links.find(x => x.id === lEl.dataset.link); if (l && l.bends) { commit(); delete l.bends; changed(); toast('Line rerouted automatically'); } return; } const nEl = hitEl.closest('[data-node]'); if (nEl) { const l = $('#iLabel'); if (l) { l.focus(); l.select(); } } });
 
 /* ───────── keyboard ───────── */
 document.addEventListener('keydown', e => {
   const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
   const mod = e.ctrlKey || e.metaKey;
+  if (mod && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y') && isLocked() && !(e.target && /INPUT|TEXTAREA/.test(e.target.tagName))) { e.preventDefault(); guardLocked(); return; }
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
   if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (typing) return;
@@ -1517,10 +1575,10 @@ document.addEventListener('keydown', e => {
   if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); setSel(P().nodes.filter(n => !TYPES[n.type].proc).map(n => n.id)); renderAll(); return; }
   if (e.key === 'v' || e.key === 'V') setMode('select');
   if (e.key === 'b' || e.key === 'B') setMode(S.mode === 'box' ? 'select' : 'box');
-  if (e.key === 'c' || e.key === 'C') setMode(S.mode === 'connect' ? 'select' : 'connect');
+  if ((e.key === 'c' || e.key === 'C') && !isLocked()) setMode(S.mode === 'connect' ? 'select' : 'connect');
   if (e.key === 'w' || e.key === 'W') { S.walk.on = !S.walk.on; renderAll(); }
   if (S.walk.on && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !selIds().length) { S.walk.cur += e.key === 'ArrowRight' ? 1 : -1; renderAll(); return; }
-  if (selIds().length && e.key.startsWith('Arrow')) {
+  if (selIds().length && e.key.startsWith('Arrow') && !isLocked()) {
     e.preventDefault(); const ns = selIds().map(node).filter(n => n && !TYPES[n.type].proc); if (!ns.length) return; const d = e.shiftKey ? GRID * 4 : GRID; commit();
     const ddx = e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0, ddy = e.key === 'ArrowUp' ? -d : e.key === 'ArrowDown' ? d : 0, idset = new Set(ns.map(n => n.id)), bs = bendStarts(idset);
     ns.forEach(n => { n.x += ddx; n.y += ddy; }); shiftBends(idset, bs, ddx, ddy); changed({keepInsp: true});
@@ -1529,7 +1587,7 @@ document.addEventListener('keydown', e => {
 
 /* ───────── toolbar & panels wiring ───────── */
 $('#tSelect').onclick = () => setMode('select');
-$('#tConnect').onclick = () => setMode(S.mode === 'connect' ? 'select' : 'connect');
+$('#tConnect').onclick = () => { if (guardLocked()) return; setMode(S.mode === 'connect' ? 'select' : 'connect'); };
 $('#tBox').onclick = () => setMode(S.mode === 'box' ? 'select' : 'box');
 $('#tAuto').onclick = autoNumber;
 $('#tSched').onclick = openSchedule;
@@ -1550,7 +1608,7 @@ $('#upDrop').addEventListener('drop', e => { const f = e.dataTransfer && e.dataT
   cw.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
   cw.addEventListener('dragleave', () => { depth = Math.max(0, depth - 1); if (!depth) cw.classList.remove('dropping'); });
   cw.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); depth = 0; cw.classList.remove('dropping'); const f = e.dataTransfer.files[0]; if (f) openUpload(f); }); }
-$('#tColors').onclick = () => { renderColors(); $('#dlgColors').showModal(); };
+$('#tColors').onclick = () => { renderColors(); $('#dlgColors').showModal(); const L = isLocked(); $('#dlgColors').querySelectorAll('input,button:not(#vcClose)').forEach(x => x.disabled = L); };
 $('#vcClose').onclick = () => $('#dlgColors').close();
 function renderColors() {
   const p = P(); const c = p.colors; $('#vcOn').checked = !!c.on;
@@ -1569,7 +1627,7 @@ $('#vcDefault').onclick = () => { try { localStorage.setItem('eol.colors', JSON.
 $('#schedClose').onclick = () => $('#dlgSched').close();
 $('#schedCsv').onclick = () => copyText(scheduleCSV(), 'Schedule CSV');
 $('#tWalk').onclick = () => { S.walk.on = !S.walk.on; if (S.walk.on && S.walk.cur === 0) S.walk.cur = seq().find(n => n.status !== 'done') ? Math.max(0, (seq().find(n => n.status !== 'done') || {step: 1}).step - 1) : 0; renderAll(); };
-$('#tUndo').onclick = undo; $('#tRedo').onclick = redo;
+$('#tUndo').onclick = () => { if (!guardLocked()) undo(); }; $('#tRedo').onclick = () => { if (!guardLocked()) redo(); };
 $('#tZoomIn').onclick = () => zoomBy(1.2); $('#tZoomOut').onclick = () => zoomBy(1 / 1.2); $('#tFit').onclick = fitView;
 $('#wPrev').onclick = () => { S.walk.cur--; renderAll(); };
 $('#wNext').onclick = () => { S.walk.cur++; renderAll(); };
@@ -1598,7 +1656,7 @@ DRAWN.filter(t => !TYPES[t].hidden).forEach(t => {
 });
 
 // project bar
-$('#projName').addEventListener('input', e => { P().name = e.target.value || 'Untitled project'; P().updatedAt = new Date().toISOString(); scheduleSave(); });
+$('#projName').addEventListener('input', e => { if (isLocked()) return; P().name = e.target.value || 'Untitled project'; P().updatedAt = new Date().toISOString(); scheduleSave(); });
 $('#projName').addEventListener('change', renderProjectSelect);
 $('#projSel').addEventListener('change', async e => { await openProject(e.target.value); });
 const closeMenus = () => document.querySelectorAll('details.menu[open]').forEach(d => d.removeAttribute('open'));
@@ -1607,7 +1665,7 @@ $('#mNewBlank').onclick = () => { closeMenus(); newProject(blankProject('New pro
 S.templates = [];
 function projectFromTemplate(t) {
   const p = normalize(JSON.parse(JSON.stringify(t.project))); p.id = uid('p'); p.name = 'New project — ' + t.name; p.drawing = ''; p.rev = '0'; p.date = today(); p.updatedAt = new Date().toISOString();
-  p.nodes.forEach(n => n.status = 'pending'); return p;
+  p.nodes.forEach(n => n.status = 'pending'); p.locked = false; delete p.lockPin; return p;
 }
 function renderTemplates() {
   const el = $('#tplList');
@@ -1628,7 +1686,7 @@ $('#tplGo').onclick = async () => {
   const t = {id: uid('t'), name, createdAt: new Date().toISOString(), project: proj};
   try { await store.putTemplate(t); S.templates.unshift(t); renderTemplates(); toast(`Template “${name}” saved`); } catch { toast('Could not save the template (storage full?)'); }
 };
-$('#mDup').onclick = () => { closeMenus(); const c = normalize(JSON.parse(JSON.stringify(P()))); c.id = uid('p'); c.name = P().name + ' (copy)'; newProject(c); };
+$('#mDup').onclick = () => { closeMenus(); const c = normalize(JSON.parse(JSON.stringify(P()))); c.id = uid('p'); c.name = P().name + ' (copy)'; c.locked = false; delete c.lockPin; newProject(c); };
 $('#mRevs').onclick = async () => { closeMenus(); await openRevisions(); };
 $('#revClose').onclick = () => $('#dlgRev').close();
 S.revs = [];
@@ -1646,6 +1704,7 @@ async function openRevisions() {
   $('#dlgRev').showModal();
 }
 $('#revMark').onclick = async () => {
+  if (guardLocked()) return;
   const p = P(); const r = {id: uid('r'), rev: $('#revLabel').value.trim() || p.rev, note: $('#revNote').value.trim(), date: p.date, at: new Date().toISOString(), nodes: JSON.parse(JSON.stringify(p.nodes)), links: JSON.parse(JSON.stringify(p.links))};
   const items = S.revs.concat(r).slice(-12);
   try { await store.putRevs(p.id, items); S.revs = items; }
@@ -1654,7 +1713,7 @@ $('#revMark').onclick = async () => {
 };
 $('#revOut').addEventListener('click', async e => { const b = e.target.closest('[data-revdel]'); if (!b) return; S.revs.splice(+b.dataset.revdel, 1); try { await store.putRevs(P().id, S.revs); } catch {} await openRevisions(); });
 function diffRevs(a, b) {
-  const F = [['label', 'Tag'], ['type', 'Symbol'], ['volt', 'Voltage'], ['volt2', 'Secondary voltage'], ['amps', 'Rating'], ['kva', 'kVA'], ['sub', 'Note'], ['state', 'State'], ['step', 'Step'], ['hold', 'Hold point'], ['stayOpen', 'Stays open'], ['action', 'Action'], ['verify', 'Verify'], ['by', 'By'], ['witness', 'Witness']];
+  const F = [['label', 'Tag'], ['type', 'Symbol'], ['volt', 'Voltage'], ['volt2', 'Secondary voltage'], ['amps', 'Rating'], ['kva', 'kVA'], ['kw', 'kW'], ['sub', 'Note'], ['state', 'State'], ['step', 'Step'], ['hold', 'Hold point'], ['stayOpen', 'Stays open'], ['action', 'Action'], ['verify', 'Verify'], ['by', 'By'], ['witness', 'Witness']];
   const am = new Map(a.nodes.map(n => [n.id, n])), bm = new Map(b.nodes.map(n => [n.id, n]));
   const show = (k, v) => k === 'type' ? (TYPES[v] ? TYPES[v].name : v) : typeof v === 'boolean' ? (v ? 'yes' : 'no') : (v === '' || v == null ? '—' : String(v));
   const out = {added: b.nodes.filter(n => !am.has(n.id)), removed: a.nodes.filter(n => !bm.has(n.id)), changed: [], moved: 0, linksAdded: [], linksRemoved: []};
@@ -1699,7 +1758,7 @@ $('#impGo').onclick = () => {
     const p = normalize(raw); if (S.list.some(x => x.id === p.id) || P().id === p.id) p.id = uid('p'); $('#dlgImport').close(); newProject(p); toast('Imported ' + p.name); }
   catch { toast('That is not valid project JSON'); }
 };
-$('#mDelete').onclick = () => { closeMenus(); $('#delMsg').textContent = `“${P().name}” will be removed from your saved projects. This cannot be undone.`; $('#dlgDel').showModal(); };
+$('#mDelete').onclick = () => { if (isLocked()) { closeMenus(); toast('Unlock this project before deleting it.'); return; } closeMenus(); $('#delMsg').textContent = `“${P().name}” will be removed from your saved projects. This cannot be undone.`; $('#dlgDel').showModal(); };
 $('#delCancel').onclick = () => $('#dlgDel').close();
 $('#delGo').onclick = async () => {
   $('#dlgDel').close(); clearTimeout(S.saveTimer); const id = P().id;
@@ -1933,6 +1992,7 @@ Object.keys(LINEUPS).forEach(k => {
   b.onclick = () => openLineup(k); lu.appendChild(b);
 });
 function openLineup(k) {
+  if (guardLocked()) return;
   luKind = k; const L = LINEUPS[k];
   $('#luTitle').textContent = 'Insert: ' + L.name; $('#luHint').textContent = L.special ? 'Normal feeder breaker to the ATS N input, generator and output breaker to the E input, emergency loads below. Each piece stays editable.' : `${L.sections} bus section${L.sections > 1 ? 's' : ''}, a main breaker on each${L.sections > 1 ? `, ${L.sections - 1} normally-open tie${L.sections > 2 ? 's' : ''}` : ''}, and the feeders you choose. Each piece stays editable.`;
   $('#luTag').value = L.tag; luSelect('luVolt', '480/277V'); luSelect('luPri', '13.8kV'); luSelect('luKva', '2000');
@@ -1953,6 +2013,7 @@ $('#luGo').onclick = () => {
   insertLineup(luKind, {tag: $('#luTag').value.trim() || 'SWBD', voltage: luVal('luVolt'), mainA: luVal('luMainA'), fdrA: luVal('luFdrA'), feeders: clamp(parseInt($('#luFeeders').value) || 0, 0, 8), incoming: $('#luIn').value, primary: luVal('luPri'), kva: luVal('luKva'), gen: $('#luGen').value.trim() || 'GEN-1', number: $('#luNumber').checked});
 };
 function insertLineup(kind, o) {
+  if (guardLocked()) return;
   commit();
   const p = P(), L = LINEUPS[kind], nodes = [], links = [], steps = [], LET = ['A','B','C','D','E'];
   const add = (type, x, y, extra) => { const n = mkNode(type, x, y, extra); nodes.push(n); return n; };
@@ -2022,11 +2083,48 @@ function insertLineup(kind, o) {
   toast(`${L.name} inserted: ${nodes.length} devices${o.number ? ', steps ' + (steps[0].step) + '–' + steps[steps.length - 1].step : ''}`);
 }
 window.__eol = {exportSVG, exportCSV, insertLineup, makePDF, linkPts, routeRaw, get view() { return S.view; }, get project() { return P(); }};
+/* ───────── lock ───────── */
+async function pinHash(pin, salt) {
+  const txt = 'eol:' + salt + ':' + pin;
+  try { if (crypto && crypto.subtle) { const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt)); return 's2:' + [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join(''); } } catch {}
+  let h = 2166136261; for (const ch of txt) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return 'f1:' + h.toString(16);
+}
+function openLock() {
+  const L = isLocked(), p = P(); $('#lkErr').hidden = true; $('#lkPin').value = '';
+  if (!L) {
+    $('#lkTitle').textContent = 'Lock this project';
+    $('#lkHelp').textContent = 'Locking stops changes to the drawing, devices, ratings, lines and steps. Anyone can still zoom, open device details, walk the sequence, mark steps done, and export. The lock is saved with the project and stays on when you share the project file.';
+    $('#lkPinRow').hidden = false; $('#lkPinLbl').textContent = 'PIN to unlock (optional)'; $('#lkPin').placeholder = 'Leave blank for no PIN';
+    $('#lkNote').textContent = 'This prevents accidental changes. It is not security: Duplicate current still makes an editable copy.';
+    $('#lkGo').textContent = 'Lock';
+  } else {
+    $('#lkTitle').textContent = 'Unlock this project';
+    $('#lkHelp').textContent = 'Unlocking allows changes to the drawing and steps again.';
+    $('#lkPinRow').hidden = !p.lockPin; $('#lkPinLbl').textContent = 'PIN'; $('#lkPin').placeholder = '';
+    $('#lkNote').textContent = p.lockPin ? 'Forgot the PIN? Project → Duplicate current gives you an editable copy.' : '';
+    $('#lkGo').textContent = 'Unlock';
+  }
+  $('#dlgLock').showModal(); if (!$('#lkPinRow').hidden) setTimeout(() => $('#lkPin').focus(), 50);
+}
+$('#tLock').onclick = openLock;
+$('#lkCancel').onclick = () => $('#dlgLock').close();
+$('#lkPin').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#lkGo').click(); } });
+$('#lkGo').onclick = async () => {
+  const p = P(), pin = $('#lkPin').value.trim();
+  if (!p.locked) {
+    p.locked = true; if (pin) p.lockPin = await pinHash(pin, p.id); else delete p.lockPin;
+    S.mode = 'select'; S.connectFrom = null; $('#dlgLock').close(); changed(); toast(pin ? 'Locked with a PIN' : 'Locked');
+  } else {
+    if (p.lockPin) { const h = await pinHash(pin, p.id); if (h !== p.lockPin) { $('#lkErr').textContent = "That PIN doesn't match."; $('#lkErr').hidden = false; $('#lkPin').select(); return; } }
+    p.locked = false; delete p.lockPin; $('#dlgLock').close(); changed(); toast('Unlocked');
+  }
+};
 /* ───────── equipment schedule ───────── */
 const SCHED_FIELDS = ['step','label','type','volt','volt2','rating','sub','state','hold','action','verify','by','witness'];
 function openSchedule() {
-  $('#dlVolts').innerHTML = VOLTS.map(v => `<option value="${v}">`).join(''); $('#dlAmps').innerHTML = AMPS.map(v => `<option value="${v}">`).join(''); $('#dlKva').innerHTML = KVAS.map(v => `<option value="${v}">`).join('');
+  $('#dlVolts').innerHTML = VOLTS.map(v => `<option value="${v}">`).join(''); $('#dlAmps').innerHTML = AMPS.map(v => `<option value="${v}">`).join(''); $('#dlKva').innerHTML = KVAS.map(v => `<option value="${v}">`).join(''); $('#dlKw').innerHTML = KWS.map(v => `<option value="${v}">`).join('');
   renderSchedule(); $('#dlgSched').showModal();
+  if (isLocked()) { $('#schedTable').querySelectorAll('input,select').forEach(x => x.disabled = true); $('#schedCount').textContent += ' · locked, read-only'; }
 }
 function renderSchedule() {
   const rows = P().nodes.slice().sort((a, b) => (a.step || 999) - (b.step || 999) || a.label.localeCompare(b.label));
@@ -2039,7 +2137,7 @@ function renderSchedule() {
       <td>${isP ? 'Procedure step' : `<select data-f="type" aria-label="Symbol">${typeOpts(n)}</select>`}</td>
       <td>${isP ? '' : `<input class="v" type="text" list="dlVolts" data-f="volt" value="${esc(n.volt)}" aria-label="Voltage">`}</td>
       <td>${xf ? `<input class="v" type="text" list="dlVolts" data-f="volt2" value="${esc(n.volt2)}" aria-label="Secondary voltage">` : ''}</td>
-      <td>${isP ? '' : xf ? `<input class="v" type="text" list="dlKva" data-f="kva" value="${esc(n.kva)}" placeholder="kVA" aria-label="kVA">` : `<input class="v" type="text" list="dlAmps" data-f="amps" value="${esc(n.amps)}" aria-label="Current rating">`}</td>
+      <td>${isP ? '' : KW_TYPES.has(n.type) ? `<input class="v" type="text" list="dlKw" data-f="kw" value="${esc(n.kw)}" placeholder="kW" aria-label="kW">` : xf ? `<input class="v" type="text" list="dlKva" data-f="kva" value="${esc(n.kva)}" placeholder="kVA" aria-label="kVA">` : `<input class="v" type="text" list="dlAmps" data-f="amps" value="${esc(n.amps)}" aria-label="Current rating">`}</td>
       <td><input class="p" type="text" data-f="sub" value="${esc(n.sub)}" aria-label="Note"></td>
       <td>${STATEFUL.has(n.type) ? `<select data-f="state" aria-label="State">${STATES.map(([v, t]) => `<option value="${v}"${(n.state || 'open') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>` : ''}</td>
       <td><input type="checkbox" data-f="hold"${n.hold ? ' checked' : ''} aria-label="Hold point"></td>
@@ -2050,13 +2148,13 @@ function renderSchedule() {
       <td>${isP ? '' : '<button class="go" data-go="1" title="Show on drawing">Go</button>'}</td></tr>`; }).join('') + '</tbody>';
 }
 { let typing = false; const tcommit = () => { if (!typing) { commit(); typing = true; setTimeout(() => typing = false, 1500); } };
-  $('#schedTable').addEventListener('input', e => { const t = e.target, f = t.dataset.f; if (!f || t.type === 'checkbox' || t.tagName === 'SELECT' || f === 'step') return; const n = node(t.closest('tr').dataset.id); if (!n) return; tcommit(); n[f] = f === 'amps' ? NORM.amps(t.value.trim()) : f === 'kva' ? NORM.kva(t.value.trim()) : (f === 'volt' || f === 'volt2') ? NORM.volt(t.value.trim()) : t.value; changed({keepInsp: true}); });
+  $('#schedTable').addEventListener('input', e => { const t = e.target, f = t.dataset.f; if (!f || t.type === 'checkbox' || t.tagName === 'SELECT' || f === 'step') return; const n = node(t.closest('tr').dataset.id); if (!n) return; tcommit(); n[f] = f === 'amps' ? NORM.amps(t.value.trim()) : f === 'kva' ? NORM.kva(t.value.trim()) : f === 'kw' ? NORM.kw(t.value.trim()) : (f === 'volt' || f === 'volt2') ? NORM.volt(t.value.trim()) : t.value; changed({keepInsp: true}); });
   $('#schedTable').addEventListener('change', e => { const t = e.target, f = t.dataset.f; if (!f) return; const n = node(t.closest('tr').dataset.id); if (!n) return;
     if (f === 'step') { const k = parseInt(t.value); if (isNaN(k)) return; commit(); setStepPos(n, k); changed(); renderSchedule(); }
     else if (f === 'hold') { commit(); n.hold = t.checked; changed(); }
     else if (f === 'state') { commit(); n.state = t.value; changed(); }
     else if (f === 'type') { commit(); n.type = t.value; if (XF.has(n.type)) n.amps = ''; else { n.kva = ''; n.volt2 = ''; } n.state = STATEFUL.has(n.type) ? (n.state || 'open') : ''; changed(); renderSchedule(); }
-    else if (['amps', 'kva', 'volt', 'volt2'].includes(f)) { t.value = n[f]; }
+    else if (['amps', 'kva', 'kw', 'volt', 'volt2'].includes(f)) { t.value = n[f]; }
   });
   $('#schedTable').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (!b) return; const n = node(b.closest('tr').dataset.id); $('#dlgSched').close(); S.sel = {kind: 'node', id: n.id}; renderAll(); centerOn(n); });
 }
