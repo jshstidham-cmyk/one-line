@@ -1,0 +1,48 @@
+ENERGIZATION ONE-LINE · WEB APP
+===============================
+
+This folder is the whole app. Put it on any website host, then install it on
+your phone from the browser. Projects are saved on the phone and it works with
+no signal once it has been opened one time.
+
+1. PUT IT ONLINE (free, about 10 minutes, using GitHub Pages)
+   a. Go to github.com and create a free account (or sign in).
+   b. Click "+" (top right) > New repository. Name it: one-line
+      Leave it Public. Click "Create repository".
+   c. On the new repository page click "uploading an existing file"
+      (or Add file > Upload files).
+   d. Drag in EVERYTHING inside this folder: index.html, manifest.webmanifest,
+      sw.js, the icons folder, and this file. Click "Commit changes".
+   e. Go to Settings > Pages. Under "Build and deployment" set
+      Source = Deploy from a branch, Branch = main, folder = / (root). Save.
+   f. Wait a minute or two. Your app is at:
+         https://YOUR-USERNAME.github.io/one-line/
+
+   Other free hosts work the same way (for example Netlify: drag this folder
+   onto app.netlify.com/drop). Any host with an https:// address will do.
+
+2. INSTALL ON YOUR PHONE
+   iPhone / iPad: open the address in Safari > tap Share > Add to Home Screen.
+   Android: open it in Chrome > tap "Install app" (or menu > Add to Home screen).
+   On a computer, Chrome and Edge show an install icon in the address bar.
+
+3. FIRST RUN
+   Open the app once while you have signal. That stores it on the phone,
+   including the PDF reader, so it works offline in an electrical room.
+
+USING IT ON A PHONE
+   Pinch to zoom. Drag with two fingers to pan. Tap a device, then
+   "Edit details" to change it. Long-press devices to select several.
+   Details and Sequence are tabs below the drawing.
+   Export sends files to the share sheet (Files, Mail, AirDrop, Drive).
+
+YOUR DATA
+   Projects stay on that phone; nothing is sent anywhere. The repository being
+   public only means someone with the address could open an empty copy of the
+   app. Deleting the app from the home screen deletes its projects, so use
+   Project > Back up all projects now and then, and keep the file in Files,
+   Drive, or email. Import the backup on another device to move projects.
+
+UPDATING
+   Upload the new files over the old ones in the same repository. The app
+   shows "A new version is ready" the next time it is opened with signal.

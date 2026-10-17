@@ -1,0 +1,2116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Energization One-Line</title>
+<meta name="description" content="Draw a one-line, number the energization order, walk it step by step, and export the switching packet.">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="One-Line">
+<style>[hidden]{display:none!important}img{max-width:100%}
+@media (display-mode: standalone){ .top{padding-top:max(6px,env(safe-area-inset-top))} body{padding-bottom:env(safe-area-inset-bottom)} .walkbar{bottom:calc(8px + env(safe-area-inset-bottom))!important} }
+.appbanner{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));z-index:60;display:flex;gap:10px;align-items:center;background:#1a1f26;color:#fff;padding:10px 12px 10px 16px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);max-width:calc(100vw - 24px);font-size:13.5px}
+.appbanner button{border:0;border-radius:8px;padding:8px 12px;font-weight:600;background:#fff;color:#1a1f26;white-space:nowrap}
+.appbanner button.x{background:transparent;color:#cfd6dd;padding:8px}
+.appver{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#8a949f}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: drafting-table workbench. Palette left, canvas center, sequence + inspector right; stacks on phones. */
+:root{
+  --bg:#eef0ec; --panel:#ffffff; --panel-2:#f6f7f4; --ink:#1a1f26; --muted:#5f6873; --line:#d4d9d2; --line-2:#e6e9e3;
+  --accent:#1f5fbf; --accent-soft:#e2ecfb; --live:#c8311b; --live-soft:#fbe3de; --hold:#c47f00; --hold-soft:#fdf0d5; --ok:#2c7a4b; --ok-soft:#dff1e5;
+  --canvas:#fbfbf9; --grid:#e3e6e0; --shadow:0 1px 2px rgba(20,25,30,.08),0 6px 20px rgba(20,25,30,.06);
+  --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#131920; --panel:#1b222b; --panel-2:#161d25; --ink:#e7eaed; --muted:#9aa5b1; --line:#2d3742; --line-2:#242d37;
+  --accent:#7fb0f5; --accent-soft:#1d2f4a; --live:#ff6f52; --live-soft:#4a211a; --hold:#e8ac3c; --hold-soft:#43340f; --ok:#63c58d; --ok-soft:#173826;
+  --canvas:#0f141a; --grid:#1c242d; --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.35); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#131920; --panel:#1b222b; --panel-2:#161d25; --ink:#e7eaed; --muted:#9aa5b1; --line:#2d3742; --line-2:#242d37;
+  --accent:#7fb0f5; --accent-soft:#1d2f4a; --live:#ff6f52; --live-soft:#4a211a; --hold:#e8ac3c; --hold-soft:#43340f; --ok:#63c58d; --ok-soft:#173826;
+  --canvas:#0f141a; --grid:#1c242d; --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.35); color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.4;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+#app{height:100%;display:flex;flex-direction:column;min-height:0}
+
+/* Top bar */
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border-bottom:1px solid var(--line);
+  padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.01em;white-space:nowrap}
+.brand svg{width:22px;height:22px}
+.brand small{font-weight:500;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.top .grow{flex:1 1 220px;display:flex;gap:8px;align-items:center;min-width:0}
+.top select,.top input[type=text]{min-width:0}
+#projName{flex:1 1 160px;font-weight:600}
+.status{font-size:12px;color:var(--muted);white-space:nowrap;font-family:var(--mono)}
+.status.err{color:var(--live)}
+
+/* Controls */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 10px;line-height:1.2;white-space:nowrap}
+.btn:hover{background:var(--panel-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--live);border-color:var(--live)}
+.btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.btn.sm{padding:4px 8px;font-size:12.5px}
+.btn.icon{padding:5px 7px}
+.btn[disabled]{opacity:.45;cursor:default}
+input[type=text],input[type=number],input[type=date],select,textarea{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 8px;width:100%}
+textarea{resize:vertical;min-height:54px}
+input[type=number]{font-family:var(--mono);font-variant-numeric:tabular-nums}
+details.menu{position:relative}
+details.menu summary{list-style:none}
+details.menu summary::-webkit-details-marker{display:none}
+details.menu .sheet{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);min-width:230px;padding:6px}
+details.menu .sheet button{display:flex;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:6px;gap:8px;align-items:center}
+details.menu .sheet .tplrow{display:flex;align-items:center}
+details.menu .sheet .tplrow button:first-child{flex:1}
+details.menu .sheet .tplrow button.x{width:auto;padding:6px 8px;color:var(--muted)}
+details.menu .sheet .tplrow button.x:hover{color:var(--live)}
+details.menu .sheet button:hover{background:var(--panel-2)}
+details.menu .sheet .sep{height:1px;background:var(--line-2);margin:4px 0}
+details.menu .sheet .hdr{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:6px 10px 2px}
+
+/* Workspace */
+.work{flex:1;display:grid;grid-template-columns:176px minmax(0,1fr) 360px;min-height:0}
+.palette{background:var(--panel);border-right:1px solid var(--line);padding:10px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.palette h3,.side h3{margin:4px 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pal{display:flex;align-items:center;gap:10px;border:1px solid var(--line-2);background:var(--panel);border-radius:6px;padding:5px 8px;text-align:left}
+.pal:hover{border-color:var(--accent);background:var(--accent-soft)}
+.pal svg{width:34px;height:34px;flex:none;stroke:var(--ink);fill:none;stroke-width:1.6}
+.pal span{font-size:13px}
+.pal .hint{display:block;font-size:11px;color:var(--muted)}
+.palette .note{font-size:12px;color:var(--muted);margin-top:auto;padding-top:8px;border-top:1px solid var(--line-2)}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--panel-2)}
+
+.center{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--canvas)}
+.tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+.tools .sep{width:1px;height:22px;background:var(--line)}
+.cdots{display:inline-flex;gap:2px;margin-right:2px}.cdots i{width:6px;height:6px;border-radius:50%;display:block}
+.cdots i:nth-child(1){background:#c4342a}.cdots i:nth-child(2){background:#1f66c9}.cdots i:nth-child(3){background:#23934f}
+.vcrow{display:grid;grid-template-columns:44px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--line-2)}
+.vcrow input[type=color]{width:40px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer}
+.vcrow .vn{font-weight:600;font-family:var(--mono);font-size:13px}
+.vcrow .use{font-size:11.5px;color:var(--muted)}
+.vcrow .swl{width:36px;height:5px;border-radius:3px}
+.tools .hint{font-size:12px;color:var(--muted);margin-left:auto}
+.cwrap{position:relative;flex:1;min-height:0;overflow:hidden}
+svg#cv{width:100%;height:100%;display:block;touch-action:none;cursor:default;background:var(--canvas)}
+svg#cv.pan{cursor:grab}
+svg#cv.box{cursor:crosshair}
+svg#cv .marquee{fill:var(--accent);fill-opacity:.08;stroke:var(--accent);stroke-width:1;stroke-dasharray:4 3}
+svg#cv.connect .node{cursor:crosshair}
+svg#cv.connect .node:hover .hit{fill:var(--accent);fill-opacity:.12}
+svg#cv .node{cursor:move}
+svg#cv .hit{fill:transparent;stroke:none}
+svg#cv .sym{fill:var(--canvas);stroke:var(--ink);stroke-width:1.6;vector-effect:non-scaling-stroke}
+svg#cv .thin{stroke-width:1.2;fill:none}
+svg#cv .fillsym{fill:var(--ink);stroke:none}
+svg#cv .sym.closed{fill:var(--ink)}
+svg#cv .gndbox{fill:transparent;stroke:none}
+svg#cv .removed{opacity:.3}
+svg#cv .hazard .sym{stroke:var(--live);stroke-width:2.4}
+svg#cv .hazard .gndbox{fill:var(--live);fill-opacity:.18;stroke:var(--live);stroke-width:1.5;stroke-dasharray:3 2}
+svg#cv .hazard .lbl{fill:var(--live)}
+@media (prefers-reduced-motion:no-preference){ svg#cv .hazard .gndbox{animation:pulse 1s ease-in-out infinite} }
+svg#cv .dot{fill:var(--ink)}
+svg#cv .bus{stroke:var(--ink);stroke-width:5;stroke-linecap:butt}
+svg#cv .glyph{font:600 15px var(--font);fill:var(--ink);text-anchor:middle}
+svg#cv .port{font:500 10.5px var(--mono);fill:var(--muted);text-anchor:middle}
+svg#cv .lbl{font:600 13px var(--font);fill:var(--ink)}
+svg#cv .sub{font:400 11.5px var(--font);fill:var(--muted)}
+svg#cv .inlbl{font:600 12.5px var(--font);fill:var(--ink);text-anchor:middle}
+svg#cv .link{fill:none;stroke:var(--ink);stroke-width:1.6}
+svg#cv .linkhit{fill:none;stroke:transparent;stroke-width:14;cursor:move}
+svg#cv .seghandle{fill:var(--panel);stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
+svg#cv .seghandle.h{cursor:ns-resize}svg#cv .seghandle.v{cursor:ew-resize}
+svg#cv .link-g.sel .link{stroke:var(--accent);stroke-width:2.6}
+svg#cv .badge circle{fill:var(--panel);stroke:var(--accent);stroke-width:1.6}
+svg#cv .badge text{font:600 11px var(--mono);fill:var(--ink);text-anchor:middle}
+svg#cv .badge.hold circle{stroke:var(--hold);fill:var(--hold-soft)}
+svg#cv .badge.done circle{fill:var(--accent)}
+svg#cv .badge.done text{fill:#fff}
+svg#cv .badge.hold.done circle{fill:var(--hold)}
+svg#cv .selbox{fill:none;stroke:var(--accent);stroke-width:1.2;stroke-dasharray:4 3;vector-effect:non-scaling-stroke}
+svg#cv .handle{fill:var(--panel);stroke:var(--accent);stroke-width:1.5;cursor:ew-resize}
+svg#cv .connect-from .hit{fill:var(--accent);fill-opacity:.18}
+svg#cv .grid line{stroke:var(--grid);stroke-width:1}
+/* walk mode */
+svg#cv.walk .sym,svg#cv.walk .link,svg#cv.walk .bus,svg#cv.walk .thin{stroke:var(--muted);opacity:.75}
+svg#cv.walk .fillsym,svg#cv.walk .dot{fill:var(--muted);opacity:.75}
+svg#cv.walk .live .sym,svg#cv.walk .live .bus,svg#cv.walk .live .thin,svg#cv.walk .link-g.live .link{stroke:var(--live);opacity:1}
+svg#cv.walk .live .fillsym,svg#cv.walk .live .dot{fill:var(--live);opacity:1}
+svg#cv.walk .live .sym{fill:var(--live-soft)}
+svg#cv.walk .live .sym.closed{fill:var(--live)}
+svg#cv.walk.vcolor .live .sym,svg#cv.walk.vcolor .live .bus,svg#cv.walk.vcolor .link-g.live .link{stroke:var(--ink)}
+svg#cv.walk.vcolor .live .fillsym,svg#cv.walk.vcolor .live .dot{fill:var(--ink)}
+svg#cv.walk.vcolor .live .sym{fill:var(--canvas);stroke-width:2.4}
+svg#cv.walk.vcolor .live .sym.closed{stroke-width:2.4}
+svg#cv.walk.vcolor .link-g.live .link{stroke-width:3}
+svg#cv.walk.vcolor .live .bus{stroke-width:7}
+svg#cv.walk.vcolor .sym,svg#cv.walk.vcolor .link,svg#cv.walk.vcolor .bus{opacity:.55}
+svg#cv.walk.vcolor .live .sym,svg#cv.walk.vcolor .live .bus,svg#cv.walk.vcolor .link-g.live .link{opacity:1}
+svg#cv.walk .hazard .sym{stroke:var(--live);opacity:1}
+svg#cv.walk .link-g.live .link{stroke-width:2.4}
+svg#cv.walk .cur .sym,svg#cv.walk .cur .bus{stroke-width:3}
+svg#cv.walk .cur .badge circle{stroke-width:3;stroke:var(--live)}
+@media (prefers-reduced-motion:no-preference){ svg#cv.walk .cur .badge circle{animation:pulse 1.2s ease-in-out infinite} }
+@keyframes pulse{0%,100%{stroke-opacity:1}50%{stroke-opacity:.35}}
+
+.walkbar{position:absolute;left:12px;right:12px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:10px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px 14px;align-items:center}
+.walkbar .k{font-family:var(--mono);font-weight:600;font-size:12px;color:var(--muted);letter-spacing:.04em}
+.walkbar .k b{display:block;font-size:22px;color:var(--ink);line-height:1.1}
+.walkbar .t{min-width:0}
+.walkbar .t .name{font-weight:600}
+.walkbar .t .act{font-size:13px}
+.walkbar .t .ver{font-size:12.5px;color:var(--muted)}
+.walkbar .t .ver b{color:var(--ink);font-weight:500}
+.walkbar .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.walkbar input[type=range]{grid-column:1/-1;width:100%;margin:0;accent-color:var(--live)}
+.walkbar .hp{display:inline-block;font-size:11px;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--hold);border:1px solid var(--hold);border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:middle}
+.empty{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;color:var(--muted);text-align:center;padding:20px}
+.empty div{max-width:360px}
+
+/* Side */
+.side{background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.insp{padding:12px 14px;border-bottom:1px solid var(--line);overflow:auto;max-height:52%;flex:none}
+.insp .head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.insp .head h2{margin:0;font-size:14px;font-weight:600}
+.insp .head .type{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.f{display:grid;gap:4px;margin-bottom:8px}
+.f label{font-size:12px;color:var(--muted)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0}
+.chk input{width:16px;height:16px;margin:0;accent-color:var(--accent)}
+.insp .seqbox{border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;margin:8px 0;background:var(--panel-2)}
+.insp .seqbox .row1{display:flex;gap:8px;align-items:center}
+.insp .seqbox .row1 input{width:72px}
+.insp .seqbox .row1 label{font-size:12px;color:var(--muted);flex:1}
+.insp .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.help{font-size:12.5px;color:var(--muted)}
+.help p{margin:6px 0}
+
+.seqpanel{flex:1;min-height:0;display:flex;flex-direction:column}
+.seqpanel .ph{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px 6px}
+.seqpanel .ph h3{margin:0}
+.seqpanel .ph .acts{display:flex;gap:6px}
+.seqlist{overflow:auto;flex:1;padding:0 8px 12px}
+.row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 6px;border-radius:8px;border:1px solid transparent;cursor:pointer}
+.row:hover{background:var(--panel-2)}
+.row.sel{border-color:var(--accent);background:var(--accent-soft)}
+.row .n{width:26px;height:26px;border-radius:50%;border:1.6px solid var(--accent);display:grid;place-items:center;font:600 11.5px var(--mono);background:var(--panel)}
+.row .n.hold{border-color:var(--hold);background:var(--hold-soft)}
+.row .n.done{background:var(--accent);color:#fff}
+.row .n.hold.done{background:var(--hold)}
+.row .m{min-width:0}
+.row .m .t{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .m .t .proc{font-weight:500;color:var(--muted);font-size:11.5px;margin-left:4px}
+.row .m .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .ra{display:flex;gap:3px;align-items:center}
+.row .ra button{border:1px solid var(--line-2);background:var(--panel);border-radius:5px;padding:2px 6px;font-size:11px;line-height:1.4}
+.row .ra button:hover{border-color:var(--accent)}
+.chip{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+.chip.done{color:var(--ok);border-color:var(--ok)!important;background:var(--ok-soft)!important}
+.seqlist .none{padding:14px 8px;color:var(--muted);font-size:13px}
+
+/* Dialogs & toast */
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);box-shadow:var(--shadow);padding:16px;max-width:min(520px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(10,14,18,.45)}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:22px 16px;display:grid;justify-items:center;gap:4px;text-align:center;cursor:pointer;color:var(--muted);background:var(--panel-2)}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.drop .lnk{color:var(--accent);text-decoration:underline}
+.uphelp p{margin:8px 0 0}
+#upBody:not(:empty){margin-top:12px}
+.upfile{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:10px}
+.upfile .nm{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;max-height:260px;overflow:auto;padding:2px}
+.pages button{border:2px solid var(--line);border-radius:6px;background:#fff;padding:4px;display:grid;gap:4px;justify-items:center;font-size:11.5px;color:#333}
+.pages button.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.pages canvas,.uppreview img,.uppreview canvas{max-width:100%;height:auto;display:block;background:#fff}
+.uppreview{border:1px solid var(--line);border-radius:8px;padding:6px;background:#fff;max-height:300px;overflow:auto;margin-bottom:10px}
+.upmsg{padding:10px 12px;border-radius:8px;background:var(--hold-soft);color:var(--ink);margin-bottom:10px}
+.cwrap.dropping::after{content:"Drop to upload the one-line";position:absolute;inset:10px;border:3px dashed var(--accent);border-radius:12px;display:grid;place-items:center;font-weight:600;color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 70%,transparent);pointer-events:none}
+dialog.wide{width:min(1500px,calc(100vw - 24px));max-width:none;max-height:calc(100vh - 24px);display:flex;flex-direction:column}
+dialog.wide:not([open]){display:none}
+.schedwrap{overflow:auto;flex:1;min-height:0;border:1px solid var(--line);border-radius:8px}
+table.sched{border-collapse:collapse;width:max-content;min-width:100%;font-size:12.5px}
+table.sched th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
+table.sched td{padding:3px 4px;border-bottom:1px solid var(--line-2);vertical-align:top}
+table.sched tr:hover td{background:var(--panel-2)}
+table.sched input,table.sched select{padding:4px 6px;border-radius:4px;min-width:0}
+table.sched input.n{width:52px;font-family:var(--mono)}
+table.sched input.t{width:150px}
+table.sched input.v{width:104px}
+table.sched input.w{width:230px}
+table.sched input.p{width:130px}
+table.sched select{width:auto}
+table.sched .proc td{color:var(--muted)}
+table.sched button.go{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:2px 7px;font-size:11px}
+dialog h2{margin:0 0 8px;font-size:16px}
+dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;box-shadow:var(--shadow);z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1}
+
+@media (max-width:960px){
+  body{overflow:auto}
+  #app{height:auto;min-height:100%}
+  .work{grid-template-columns:1fr;grid-template-rows:auto auto auto}
+  .palette{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px 10px}
+  .pal{flex:none;flex-direction:column;gap:2px;padding:4px 6px;min-width:76px}
+  .pal svg{width:28px;height:28px}
+  .pal span{font-size:11px;text-align:center}
+  .pal .hint,.palette h3,.palette .note{display:none}
+  #lineups{display:contents}
+  .palette{align-items:flex-start;gap:6px}
+  .pal{align-self:stretch;max-width:96px}
+  .center{height:62vh;min-height:380px}
+  .side{border-left:0;border-top:1px solid var(--line);max-height:none}
+  .insp{max-height:none}
+  .seqlist{max-height:60vh}
+  .walkbar{grid-template-columns:auto minmax(0,1fr)}
+  .walkbar .acts{grid-column:1/-1;justify-content:flex-start}
+  .status{white-space:normal;flex-basis:100%}
+}
+.sidetabs,.detpill{display:none}
+@media (max-width:760px){
+  .top{gap:6px;padding-block:6px}
+  .brand span,.status{display:none}
+  .top .grow{flex:1 1 100%;order:5}
+  #projSel{flex:1 1 40%!important}
+  #uploadBtn .ulbl{display:none}
+  .tools{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tools .hint{display:none}
+  .tools .btn{flex:none}
+  .center{height:68dvh;height:68vh;min-height:360px}
+  @supports (height:1dvh){ .center{height:68dvh} }
+  .sidetabs{display:flex;gap:4px;padding:8px 10px 0;position:sticky;top:0;background:var(--panel);z-index:2;border-bottom:1px solid var(--line)}
+  .sidetabs button{flex:1;border:0;background:none;padding:10px 8px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent}
+  .sidetabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+  .side[data-tab="insp"] .seqpanel,.side[data-tab="seq"] .insp{display:none}
+  .seqlist{max-height:none}
+  .detpill{position:absolute;right:12px;top:12px;z-index:5;border:1px solid var(--accent);background:var(--panel);color:var(--accent);font-weight:600;border-radius:999px;padding:8px 14px;box-shadow:var(--shadow)}
+  .detpill:not([hidden]){display:block}
+  .walkbar{left:8px;right:8px;bottom:8px;padding:8px 10px}
+  .walkbar .t .ver{display:none}
+  dialog{padding:14px}
+}
+@media (pointer:coarse){
+  svg#cv .linkhit{stroke-width:26}
+  .btn{min-height:36px}
+  .row{padding:10px 6px}
+  .row .ra button{padding:6px 9px;font-size:12px}
+}
+</style>
+
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand" title="Energization One-Line">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16M12 4v5M7 9h10v4H7zM12 13v3M9 16h6M12 19v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Energization One-Line</span>
+    </div>
+    <div class="grow">
+      <label class="sr" for="projSel">Open project</label>
+      <select id="projSel" title="Open project" style="flex:0 1 220px"></select>
+      <label class="sr" for="projName">Project name</label>
+      <input type="text" id="projName" placeholder="Project name" autocomplete="off">
+    </div>
+    <button class="btn primary" id="installBtn" hidden title="Install this app on this device">Install app</button>
+    <button class="btn" id="uploadBtn" title="Open a one-line someone else made: PDF, image, or project file"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 11V2M4.5 5.5 8 2l3.5 3.5M2.5 10v3.5h11V10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="ulbl">Upload one-line</span></button>
+    <details class="menu"><summary class="btn">Project ▾</summary>
+      <div class="sheet" style="min-width:300px">
+        <button id="mNewBlank">New blank project</button>
+        <div class="hdr">New from template</div>
+        <div id="tplList"></div>
+        <div class="sep"></div>
+        <button id="mDup">Duplicate current</button>
+        <button id="mSaveTpl">Save current as template…</button>
+        <div class="sep"></div>
+        <button id="mRevs">Revisions: mark or compare…</button>
+        <div class="sep"></div>
+        <button id="mImport">Import JSON…</button>
+        <button id="mBackupAll">Back up all projects (one file)</button>
+        <button id="mDelete" style="color:var(--live)">Delete current project…</button>
+      </div>
+    </details>
+    <details class="menu"><summary class="btn primary">Export ▾</summary>
+      <div class="sheet" id="exportSheet">
+        <div class="hdr">Drawing + step table</div>
+        <button data-exp="svg-dl">Download SVG (vector, for Bluebeam / Visio / PDF)</button>
+        <button data-exp="pdf-dl">Download PDF (11×17 landscape, paged step table)</button>
+        <button data-exp="png-dl">Download PNG (2× for printing)</button>
+        <button data-exp="svg-copy">Copy SVG markup</button>
+        <div class="sep"></div>
+        <div class="hdr">Step table</div>
+        <button data-exp="csv-dl">Download CSV</button>
+        <button data-exp="csv-copy">Copy as CSV</button>
+        <div class="sep"></div>
+        <div class="hdr">Backup</div>
+        <button data-exp="json-dl">Download project JSON</button>
+        <button data-exp="json-copy">Copy project JSON</button>
+      </div>
+    </details>
+    <span class="status" id="status">Loading…</span>
+  </header>
+
+  <div class="work">
+    <aside class="palette" id="palette" aria-label="Devices">
+      <h3>Add device</h3>
+      <!-- filled by script -->
+      <h3 style="margin-top:10px">Insert lineup</h3>
+      <div id="lineups"></div>
+      <div class="note">Select a device, then add another to chain it below. <kbd>Alt</kbd>-drag moves a device with everything downstream.</div>
+    </aside>
+
+    <main class="center">
+      <div class="tools" role="toolbar" aria-label="Canvas tools">
+        <button class="btn sm on" id="tSelect" title="Select and move (V)">Select</button>
+        <button class="btn sm" id="tBox" title="Drag a box to select several devices (B). Shift-click also adds to a selection.">Box select</button>
+        <button class="btn sm" id="tConnect" title="Connect two devices (C)">Connect</button>
+        <button class="btn sm" id="tSched" title="Edit every device in a grid">Schedule</button>
+        <button class="btn sm" id="tColors" title="Voltage system colors"><span class="cdots" aria-hidden="true"><i></i><i></i><i></i></span>Colors</button>
+        <span class="sep"></span>
+        <button class="btn sm" id="tAuto" title="Number switching devices top-to-bottom, left-to-right">Auto-number</button>
+        <button class="btn sm" id="tWalk" title="Step through the energization (W)">Walk sequence</button>
+        <span class="sep"></span>
+        <button class="btn sm icon" id="tUndo" title="Undo (Ctrl+Z)">↶</button>
+        <button class="btn sm icon" id="tRedo" title="Redo (Ctrl+Shift+Z)">↷</button>
+        <span class="sep"></span>
+        <button class="btn sm icon" id="tZoomOut" title="Zoom out">−</button>
+        <button class="btn sm icon" id="tZoomIn" title="Zoom in">+</button>
+        <button class="btn sm" id="tFit" title="Fit drawing">Fit</button>
+        <span class="hint" id="hint"></span>
+      </div>
+      <div class="cwrap">
+        <svg id="cv" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One-line diagram canvas"></svg>
+        <div class="empty" id="empty" hidden><div><b>Empty drawing.</b><br>Add a Source from the palette, then a Breaker, a Bus, and so on. Each new device chains below the selected one.<br><br>Have someone else's one-line? Drop the PDF or image here, or use <b>Upload one-line</b>.<br><br><span class="help">On a phone or tablet: pinch to zoom, drag with two fingers to pan, long-press a device to multi-select.</span></div></div>
+        <button class="detpill" id="detPill" hidden>Edit details ▾</button>
+        <div class="walkbar" id="walkbar" hidden>
+          <div class="k">STEP<b id="wk">0</b><span id="wn">of 0</span></div>
+          <div class="t"><div class="name" id="wname"></div><div class="act" id="wact"></div><div class="ver" id="wver"></div></div>
+          <div class="acts">
+            <button class="btn sm" id="wPrev">◀ Prev</button>
+            <button class="btn sm" id="wNext">Next ▶</button>
+            <button class="btn sm primary" id="wDone">Mark done &amp; next</button>
+            <button class="btn sm" id="wExit">Exit</button>
+          </div>
+          <input type="range" id="wRange" min="0" max="0" value="0" aria-label="Current step">
+        </div>
+      </div>
+    </main>
+
+    <aside class="side" id="side" data-tab="insp">
+      <div class="sidetabs" role="tablist"><button role="tab" data-stab="insp" aria-selected="true">Details</button><button role="tab" data-stab="seq" aria-selected="false">Sequence</button></div>
+      <section class="insp" id="insp" aria-live="polite"></section>
+      <section class="seqpanel">
+        <div class="ph">
+          <h3>Energization sequence</h3>
+          <div class="acts">
+            <button class="btn sm" id="sAddProc" title="Add a step that is not a device (walkdown, soak, release loads)">+ Step</button>
+            <button class="btn sm" id="sReset" title="Clear all done marks">Reset</button>
+          </div>
+        </div>
+        <div class="seqlist" id="seqlist"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<dialog id="dlgImport">
+  <h2>Import project JSON</h2>
+  <p class="help" style="margin-top:0">Choose a file exported from this tool, or paste the JSON below. The project is added alongside your saved ones.</p>
+  <input type="file" id="impFile" accept="application/json,.json" style="margin-bottom:8px">
+  <textarea id="impText" rows="6" placeholder='{"name": "…", "nodes": […], "links": […]}'></textarea>
+  <div class="acts"><button class="btn" id="impCancel">Cancel</button><button class="btn primary" id="impGo">Import</button></div>
+</dialog>
+<dialog id="dlgLineup">
+  <h2 id="luTitle">Insert lineup</h2>
+  <p class="help" id="luHint" style="margin-top:0"></p>
+  <div class="f2"><div class="f"><label for="luTag">Tag prefix</label><input type="text" id="luTag" value="SWBD-1"></div><div class="f"><label for="luVolt">Bus voltage</label><select id="luVolt"></select></div></div>
+  <div class="f2" id="luRowAmps"><div class="f"><label for="luMainA">Main, bus and tie rating</label><select id="luMainA"></select></div><div class="f"><label for="luFdrA">Feeder rating</label><select id="luFdrA"></select></div></div>
+  <div class="f2" id="luRowSec"><div class="f"><label for="luFeeders">Feeders per section</label><input type="number" id="luFeeders" min="0" max="8" value="3"></div>
+    <div class="f"><label for="luIn">Incoming above each main</label><select id="luIn"><option value="source">Source symbol</option><option value="xoil">Oil-filled transformer + primary breaker</option><option value="xdry">Dry-type transformer + primary breaker</option><option value="none">Nothing (connect later)</option></select></div></div>
+  <div class="f2" id="luRowPri"><div class="f"><label for="luPri">Primary voltage</label><select id="luPri"></select></div><div class="f"><label for="luKva">Transformer kVA</label><select id="luKva"></select></div></div>
+  <div class="f" id="luRowGen"><label for="luGen">Generator tag</label><input type="text" id="luGen" value="GEN-1"></div>
+  <label class="chk"><input type="checkbox" id="luNumber" checked> Number the energization steps (added after any existing steps)</label>
+  <p class="help" id="luSel" style="margin:4px 0 0"></p>
+  <div class="acts"><button class="btn" id="luCancel">Cancel</button><button class="btn primary" id="luGo">Insert</button></div>
+</dialog>
+<dialog id="dlgSched" class="wide">
+  <div class="head" style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><h2 style="margin:0;flex:1">Equipment schedule</h2><span class="help" id="schedCount"></span><button class="btn sm" id="schedCsv">Copy as CSV</button><button class="btn sm" id="schedClose">Close</button></div>
+  <p class="help" style="margin:0 0 8px">Every device on the drawing. Edit any cell; changes apply at once. Type a value or pick from the list in the rating columns.</p>
+  <div class="schedwrap"><table class="sched" id="schedTable"></table></div>
+  <datalist id="dlVolts"></datalist><datalist id="dlAmps"></datalist><datalist id="dlKva"></datalist>
+</dialog>
+<dialog id="dlgTpl">
+  <h2>Save as template</h2>
+  <p class="help" style="margin-top:0">The drawing, device ratings and step wording are kept. Step progress, drawing number and revision are cleared when a project is started from it.</p>
+  <div class="f"><label for="tplName">Template name</label><input type="text" id="tplName"></div>
+  <div class="acts"><button class="btn" id="tplCancel">Cancel</button><button class="btn primary" id="tplGo">Save template</button></div>
+</dialog>
+<dialog id="dlgRev" class="wide" style="width:min(900px,calc(100vw - 24px))">
+  <div class="head" style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><h2 style="margin:0;flex:1">Revisions</h2><button class="btn sm" id="revClose">Close</button></div>
+  <div class="seqbox" style="margin-top:0"><div class="f2"><div class="f"><label for="revLabel">Mark the current drawing as revision</label><input type="text" id="revLabel"></div><div class="f"><label for="revNote">Note</label><input type="text" id="revNote" placeholder="e.g. Issued for switching meeting"></div></div>
+    <div class="acts"><button class="btn primary sm" id="revMark">Mark revision</button><span class="help" id="revHint"></span></div></div>
+  <div class="f2"><div class="f"><label for="revA">Compare</label><select id="revA"></select></div><div class="f"><label for="revB">with</label><select id="revB"></select></div></div>
+  <div class="acts" style="justify-content:flex-start"><button class="btn sm" id="revCompare">Compare</button><button class="btn sm" id="revCopy" hidden>Copy as text</button></div>
+  <div class="schedwrap" style="margin-top:8px;padding:10px;max-height:50vh" id="revOut"><span class="help">Saved revisions appear here.</span></div>
+</dialog>
+<dialog id="dlgColors" style="width:min(460px,calc(100vw - 24px))">
+  <h2>Voltage system colors</h2>
+  <label class="chk" style="margin-top:0"><input type="checkbox" id="vcOn"> Color equipment and lines by voltage system</label>
+  <p class="help" style="margin:2px 0 8px">Devices with no voltage set take the color of the system feeding them. Transformers show the primary and secondary colors on their two windings. In Walk mode only energized parts are colored.</p>
+  <div id="vcList"></div>
+  <div class="vcrow" style="border-bottom:0"><input type="color" id="vcNewC" value="#0f8a8a" aria-label="New voltage color"><input type="text" id="vcNewV" placeholder="Add a voltage, e.g. 600V" aria-label="New voltage"><button class="btn sm" id="vcAdd">Add</button><span></span></div>
+  <div class="acts" style="justify-content:space-between;flex-wrap:wrap">
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" id="vcReset">Reset to defaults</button><button class="btn sm" id="vcDefault" title="New projects start with these colors">Use for new projects</button></div>
+    <button class="btn primary" id="vcClose">Done</button>
+  </div>
+</dialog>
+<dialog id="dlgUpload" style="width:min(680px,calc(100vw - 24px))">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><h2 style="margin:0;flex:1">Upload a one-line</h2><button class="btn sm" id="upClose">Close</button></div>
+  <div class="drop" id="upDrop" tabindex="0" role="button" aria-label="Choose a file to upload">
+    <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 15v5h16v-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div><b>Drop a file here</b> or <span class="lnk">choose a file</span></div>
+    <div class="help">PDF · PNG · JPG · project file (.json)</div>
+    <input type="file" id="upFile" accept=".pdf,.png,.jpg,.jpeg,.webp,.svg,.json,application/pdf,image/png,image/jpeg,image/webp,image/svg+xml,application/json" hidden>
+  </div>
+  <div id="upBody"></div>
+  <div class="uphelp help">
+    <p><b>PDF or image</b> from the engineer or another contractor: it goes behind your drawing as a faded background you trace over with real devices. Pick the page if the PDF has several.</p>
+    <p><b>Project file (.json)</b> exported from Energization One-Line by someone else: opens as a fully editable project, sequence and all.</p>
+    <p><b>AutoCAD (DWG/DXF)</b> can't be read here. Ask for a PDF, or plot the sheet to PDF and upload that.</p>
+  </div>
+</dialog>
+<dialog id="dlgDel">
+  <h2>Delete this project?</h2>
+  <p id="delMsg" style="margin:0"></p>
+  <div class="acts"><button class="btn" id="delCancel">Cancel</button><button class="btn danger" id="delGo">Delete</button></div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+/* ───────── constants ───────── */
+const GRID = 8;
+const TYPES = {
+  source:      {name:'Source / utility', hint:'Feeder, service, PCC', w:28, h:28, sw:true},
+  breaker:     {name:'Breaker',          hint:'CB, ACB, VCB',        w:20, h:20, sw:true},
+  switch:      {name:'Disconnect',       hint:'Switch, load-break',  w:20, h:28, sw:true},
+  fuse:        {name:'Fuse',             hint:'Fused cutout, CLF',   w:12, h:28, sw:true},
+  fswitch:     {name:'Fused disconnect', hint:'Switch + fuse',       w:20, h:40, sw:true},
+  transformer: {name:'Transformer (generic)', hint:'Generic', w:30, h:50, hidden:true},
+  xfmr_oil:    {name:'Transformer, oil-filled', hint:'Liquid-filled, pad-mount', w:52, h:60},
+  xfmr_dry:    {name:'Transformer, dry-type',   hint:'Dry-type, cast coil',      w:44, h:60},
+  bus:         {name:'Bus',              hint:'Switchgear, SWBD',    w:240,h:8},
+  panel:       {name:'Panel / board',    hint:'Panelboard, DP, MCC', w:110,h:34},
+  ats:         {name:'ATS',              hint:'N and E inputs',      w:120,h:36},
+  generator:   {name:'Generator',        hint:'Standby source',      w:36, h:36, sw:true},
+  motor:       {name:'Motor',            hint:'Pump, fan, chiller',  w:32, h:32},
+  load:        {name:'Load',             hint:'Feeder to loads',     w:16, h:24},
+  meter:       {name:'Meter',            hint:'Revenue, kWh',        w:28, h:28},
+  pt:          {name:'PT',               hint:'Potential transformer', w:30, h:18},
+  ct:          {name:'CT',               hint:'Current transformer', w:22, h:22},
+  arrester:    {name:'Surge arrester',   hint:'Lightning arrester',  w:18, h:34},
+  ups:         {name:'UPS',              hint:'Static UPS',          w:60, h:30},
+  vfd:         {name:'VFD',              hint:'Drive, soft start',   w:60, h:30},
+  cap:         {name:'Capacitor bank',   hint:'PF correction',       w:28, h:28},
+  ground:      {name:'Temporary ground', hint:'Removal is a step',   w:26, h:24, gnd:true},
+  proc:        {name:'Procedure step',   hint:'Not drawn',           w:0,  h:0, proc:true},
+};
+const DRAWN = Object.keys(TYPES).filter(t => !TYPES[t].proc);
+const XF = new Set(['transformer', 'xfmr_oil', 'xfmr_dry']);
+const STATEFUL = new Set(['breaker', 'switch', 'fswitch']);
+const STATES = [['open', 'Open'], ['closed', 'Closed'], ['racked', 'Racked out'], ['locked', 'Locked open (LOTO)']];
+// Effective state of a switching device at walk step `cur` (null = not walking: the drawn lineup).
+function effState(n, cur) {
+  if (!STATEFUL.has(n.type)) return '';
+  if (cur === null || n.step === 0) return n.state || 'open';
+  if (n.step <= cur) return n.stayOpen ? 'open' : 'closed';
+  return n.state === 'racked' || n.state === 'locked' ? n.state : 'open';
+}
+const VOLTS = ['34.5kV', '13.8kV', '4.16kV', '480/277V', '208/120V', '125VDC'];
+const AMPS = ['4000A', '3000A', '2000A', '1600A', '1200A', '800A', '600A', '400A', '200A', '150A', '100A', '60A', '30A'];
+const KVAS = ['15', '30', '45', '75', '112.5', '150', '225', '300', '500', '750', '1000', '1500', '2000', '2500', '3000', '3750', '5000', '7500', '10000'];
+const ratingText = n => XF.has(n.type) ? (n.kva ? n.kva + ' kVA' : '') : (n.amps || '');
+const voltText = n => XF.has(n.type) ? [n.volt, n.volt2].filter(Boolean).join(' – ') : (n.volt || '');
+function subText(n) { if (TYPES[n.type].proc) return n.sub || ''; return [voltText(n), ratingText(n), n.sub].filter(Boolean).join(' · '); }
+const optList = (list, val) => '<option value="">—</option>' + (val && !list.includes(val) ? `<option selected>${esc(val)}</option>` : '') + list.map(v => `<option${v === val ? ' selected' : ''}>${v}</option>`).join('') + '<option value="__other">Other…</option>';
+const kvaOpts = val => optList(KVAS, val).replace(/<option( selected)?>([\d.,]+)<\/option>/g, '<option value="$2"$1>$2 kVA</option>');
+const NORM = {
+  amps: v => /^\d+(\.\d+)?$/.test(v) ? v + 'A' : v,
+  kva: v => v.replace(/\s*kva$/i, ''),
+  volt: v => /^\d+(\.\d+)?$/.test(v) ? v + 'V' : v,
+};
+// Swap a dropdown for a text box when "Other…" is picked; apply(value) runs when the entry is finished.
+function onOther(sel, apply) {
+  const inp = document.createElement('input'); inp.type = 'text'; inp.id = sel.id; inp.placeholder = 'Type a value, then Enter'; inp.autocomplete = 'off';
+  inp.dataset.other = '1'; sel.replaceWith(inp); inp.focus();
+  let done = false; const finish = () => { if (done) return; done = true; apply(inp.value.trim()); };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); finish(); } else if (e.key === 'Escape') { done = true; apply(null); } });
+  inp.addEventListener('blur', finish);
+}
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = p => (p||'n') + Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2,6);
+const snap = v => Math.round(v / GRID) * GRID;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+
+/* ───────── state ───────── */
+const S = {
+  project: null, list: [], sel: null /* {kind:'node'|'link', id} */,
+  mode: 'select', connectFrom: null, view: {x: 40, y: 30, k: 1}, clip: null, marquee: null, bgMove: false,
+  walk: {on: false, cur: 0}, hist: [], future: [], saveTimer: null, readOnly: false,
+};
+const svg = $('#cv');
+const COARSE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+const HITPAD = COARSE ? 12 : 4;
+
+/* ───────── project model ───────── */
+function blankProject(name) {
+  return {id: uid('p'), name: name || 'Untitled project', drawing: '', rev: '0', date: today(), by: '', notes: '', nodes: [], links: [], colors: userColorDefaults(), updatedAt: new Date().toISOString(), v: 1};
+}
+function mkNode(type, x, y, o = {}) {
+  return Object.assign({id: uid(), type, x: snap(x), y: snap(y), label: TYPES[type].name, sub: '', volt: '', volt2: '', amps: '', kva: '', w: type==='bus' ? 240 : 0, labelSide: 'r',
+    badgePos: 'auto', state: STATEFUL.has(type) ? 'open' : '', step: 0, hold: false, stayOpen: false, action: '', verify: '', by: '', witness: '', status: 'pending', notes: ''}, o);
+}
+function templateProject() {
+  const p = blankProject('Sample — MV service with two unit substations');
+  p.drawing = 'E-601'; p.by = '';
+  const N = (id, type, x, y, o) => { const n = mkNode(type, x, y, Object.assign({id}, o)); p.nodes.push(n); return n; };
+  N('p1','proc',0,0,{label:'Walkdown and lineup', step:1, action:'Every breaker and switch open, racked out or locked; temporary grounds removed and logged; LOTO verified.', verify:'Walkdown signed; grounds log closed', by:'Switching electrician', witness:'Safety'});
+  N('n1','source',400,56,{label:'Campus feeder', volt:'13.8kV', sub:'Owner-operated', step:2, hold:true, action:'Owner closes feeder to line side of MV-SWGR-1.', verify:'Voltage on all phases at incoming; rotation ABC', by:'Campus HV operator', witness:'COR, EOR'});
+  N('n2','breaker',400,112,{label:'MV main', volt:'13.8kV', amps:'1200A', step:3, hold:true, action:'Close main; energize 13.8kV bus.', verify:'Bus voltage balanced; no relay alarms; soak per spec', by:'Campus HV operator', witness:'COR, EOR'});
+  N('n3','bus',400,168,{label:'MV-SWGR-1', volt:'13.8kV', amps:'1200A', w:360});
+  N('n4','breaker',280,224,{label:'Fdr to T-1', volt:'13.8kV', amps:'600A', step:4, action:'Close feeder; energize T-1 at no load.', verify:'Secondary voltage and rotation; no abnormal noise or heat; soak per spec', by:'Campus HV operator', witness:'EOR'});
+  N('n5','xfmr_oil',280,304,{label:'T-1', volt:'13.8kV', volt2:'480/277V'});
+  N('n6','breaker',280,384,{label:'SWBD-1 main', volt:'480/277V', amps:'3000A', labelSide:'l', step:5, action:'Close secondary main; energize SWBD-1 bus.', verify:'Bus voltage, rotation, meter readings logged', by:'Switching electrician', witness:'EOR'});
+  N('n7','bus',200,440,{label:'SWBD-1', volt:'480/277V', amps:'3000A', w:300, labelSide:'l'});
+  N('n8','breaker',520,224,{label:'Fdr to T-2', volt:'13.8kV', amps:'600A', step:6, action:'Close feeder; energize T-2 at no load.', verify:'Same checks as T-1', by:'Campus HV operator', witness:'EOR'});
+  N('n9','xfmr_oil',520,304,{label:'T-2', volt:'13.8kV', volt2:'480/277V'});
+  N('n10','breaker',520,384,{label:'SWBD-2 main', volt:'480/277V', amps:'3000A', step:7, action:'Close secondary main; energize SWBD-2 bus.', verify:'Bus voltage, rotation, meter readings logged', by:'Switching electrician', witness:'EOR'});
+  N('n11','bus',600,440,{label:'SWBD-2', volt:'480/277V', amps:'3000A', w:300});
+  N('n12','breaker',400,440,{label:'Tie', amps:'3000A', sub:'N.O.', step:8, hold:true, stayOpen:true, labelSide:'a', action:'Phase check across open tie; test main-tie-main interlock.', verify:'Phasing matches; interlock works per design; tie left open', by:'Testing agency', witness:'EOR, CxA'});
+  N('n13','breaker',120,504,{label:'Fdr DP-1', amps:'800A', step:9, action:'Close feeder.', verify:'Voltage at DP-1 main; energized label hung', by:'Switching electrician'});
+  N('n14','panel',120,584,{label:'DP-1 / MCC', volt:'480/277V', amps:'800A', labelSide:'b'});
+  N('n15','breaker',280,504,{label:'Fdr T-3', amps:'200A', step:11, action:'Close feeder; energize T-3 at no load.', verify:'Secondary 208/120V; rotation', by:'Switching electrician'});
+  N('n16','xfmr_dry',280,600,{label:'T-3', volt:'480/277V', volt2:'208/120V', kva:'112.5'});
+  N('n17','breaker',280,680,{label:'LP-1 main', volt:'208/120V', amps:'400A', step:12, action:'Close panel main; branch breakers stay open.', verify:'Voltage at panel; schedule matches field', by:'Switching electrician'});
+  N('n18','panel',280,744,{label:'LP-1', volt:'208/120V', amps:'400A'});
+  N('n19','breaker',504,504,{label:'Fdr DP-2', amps:'800A', step:10, action:'Close feeder.', verify:'Voltage at DP-2 main; energized label hung', by:'Switching electrician'});
+  N('n20','panel',504,584,{label:'DP-2 / MCC', volt:'480/277V', amps:'800A', labelSide:'b'});
+  N('n21','breaker',656,504,{label:'Fdr ATS-1 (N)', amps:'600A', step:13, action:'Energize normal side of ATS-1.', verify:'ATS shows normal available and on normal', by:'Switching electrician', witness:'CxA'});
+  N('n22','generator',776,528,{label:'GEN-1', volt:'480/277V', step:14, action:'Start generator with output breaker open.', verify:'Voltage, frequency and rotation at gen breaker', by:'Generator vendor', witness:'CxA'});
+  N('n23','breaker',776,592,{label:'GEN-1 output', amps:'600A', step:15, hold:true, action:'Close gen breaker; energize emergency side of ATS-1.', verify:'Rotation matches normal at ATS', by:'Testing agency', witness:'CxA, EOR'});
+  N('n24','ats',712,664,{label:'ATS-1', volt:'480/277V', amps:'600A'});
+  N('n25','load',712,728,{label:'Emergency loads'});
+  N('p2','proc',0,0,{label:'Release loads', step:16, action:'Release circuits to trades per approved circuit list.', verify:'Circuit list signed; loads enabled one at a time', by:'Energization lead', witness:'COR'});
+  const L = (a,b) => p.links.push({id: uid('l'), from: a, to: b});
+  [['n1','n2'],['n2','n3'],['n3','n4'],['n4','n5'],['n5','n6'],['n6','n7'],['n3','n8'],['n8','n9'],['n9','n10'],['n10','n11'],['n7','n12'],['n12','n11'],
+   ['n7','n13'],['n13','n14'],['n7','n15'],['n15','n16'],['n16','n17'],['n17','n18'],['n11','n19'],['n19','n20'],['n11','n21'],['n21','n24'],['n22','n23'],['n23','n24'],['n24','n25']].forEach(([a,b]) => L(a,b));
+  return p;
+}
+function normalize(p) {
+  const q = Object.assign(blankProject(), p);
+  q.id = String(q.id || uid('p'));
+  q.nodes = (Array.isArray(q.nodes) ? q.nodes : []).filter(n => n && TYPES[n.type]).map(n => { const m = Object.assign(mkNode(n.type, +n.x||0, +n.y||0), n, {step: Math.max(0, parseInt(n.step)||0)}); if (STATEFUL.has(m.type) && !n.state) m.state = m.step > 0 ? 'open' : 'closed'; if (!STATEFUL.has(m.type)) m.state = ''; return m; });
+  const ids = new Set(q.nodes.map(n => n.id));
+  if (!q.colors || typeof q.colors !== 'object' || !q.colors.map) q.colors = userColorDefaults();
+  q.links = (Array.isArray(q.links) ? q.links : []).filter(l => l && ids.has(l.from) && ids.has(l.to) && l.from !== l.to).map(l => Object.assign({id: l.id || uid('l'), from: l.from, to: l.to}, Array.isArray(l.bends) && l.bends.every(Number.isFinite) ? {bends: l.bends.slice()} : {}));
+  renumber(q);
+  return q;
+}
+const P = () => S.project;
+const selIds = () => !S.sel ? [] : S.sel.kind === 'node' ? [S.sel.id] : S.sel.kind === 'nodes' ? S.sel.ids.slice() : [];
+const isSel = id => S.sel ? (S.sel.kind === 'node' ? S.sel.id === id : S.sel.kind === 'nodes' && S.sel.ids.includes(id)) : false;
+function setSel(ids) { ids = [...new Set(ids)].filter(id => node(id)); S.sel = ids.length === 0 ? null : ids.length === 1 ? {kind: 'node', id: ids[0]} : {kind: 'nodes', ids}; }
+const node = id => P().nodes.find(n => n.id === id);
+const geom = n => ({w: n.type === 'bus' ? (n.w || 240) : TYPES[n.type].w, h: TYPES[n.type].h});
+const seq = (p = P()) => p.nodes.filter(n => n.step > 0).sort((a,b) => a.step - b.step);
+function renumber(p = P()) { seq(p).forEach((n,i) => n.step = i + 1); }
+
+/* ───────── history / save ───────── */
+function commit() { S.hist.push(JSON.stringify(P())); if (S.hist.length > 80) S.hist.shift(); S.future = []; }
+function changed(opts = {}) { P().updatedAt = new Date().toISOString(); scheduleSave(); renderAll(opts); }
+function undo() { if (!S.hist.length) return; S.future.push(JSON.stringify(P())); S.project = normalize(JSON.parse(S.hist.pop())); S.sel = null; changed(); }
+function redo() { if (!S.future.length) return; S.hist.push(JSON.stringify(P())); S.project = normalize(JSON.parse(S.future.pop())); S.sel = null; changed(); }
+
+/* ───────── storage ───────── */
+const kv = {
+  map: new Map(), idb: null, ok: false,
+  async init() {
+    try {
+      this.idb = await new Promise((res, rej) => { const r = indexedDB.open('energization-one-line', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+      this.map = await new Promise((res, rej) => { const out = new Map(); const c = this.idb.transaction('kv').objectStore('kv').openCursor(); c.onsuccess = () => { const cur = c.result; if (cur) { out.set(cur.key, cur.value); cur.continue(); } else res(out); }; c.onerror = () => rej(c.error); });
+      this.ok = true;
+      try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('eol.') && k !== 'eol.colors' && k !== 'eol.iosHint' && !this.map.has(k)) { const v = JSON.parse(localStorage.getItem(k)); this.map.set(k, v); this.write(k, v); } } } catch {}
+      try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
+    } catch { this.ok = false; }
+  },
+  get(k) { if (!this.map.has(k)) return null; const v = this.map.get(k); try { return structuredClone(v); } catch { return JSON.parse(JSON.stringify(v)); } },
+  set(k, v) { let c; try { c = structuredClone(v); } catch { c = JSON.parse(JSON.stringify(v)); } this.map.set(k, c); return this.write(k, c); },
+  del(k) { this.map.delete(k); try { this.idb.transaction('kv', 'readwrite').objectStore('kv').delete(k); } catch {} },
+  write(k, v) { try { const t = this.idb.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.onerror = () => { setStatus('Not saved: device storage is full', true); }; return true; } catch { return false; } },
+};
+const store = {
+  db: null, dl: null, ready: false,
+  async init() {
+    await kv.init();
+    try {
+      if (window.claude && typeof window.claude.use === 'function') {
+        const [db, dl, user] = await Promise.all([window.claude.use('db'), window.claude.use('downloads'), window.claude.use('user')]);
+        this.db = db; this.dl = dl;
+        if (user && db) { try { const w = await user.can('data.write'); if (w === false) S.readOnly = true; } catch {} }
+      }
+    } catch {}
+    this.ready = true;
+  },
+  usesDb() { return !!this.db && !S.readOnly; },
+  lsGet(k) { if (kv.ok) return kv.get(k); try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  lsSet(k, v) { if (kv.ok) return kv.set(k, v); try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+  lsDel(k) { if (kv.ok) return kv.del(k); try { localStorage.removeItem(k); } catch {} },
+  async list() {
+    if (this.usesDb()) {
+      try { const qs = await this.db.collection('projects').orderBy('updatedAt','desc').limit(300).get();
+        return qs.docs.filter(d => d.exists).map(d => { const x = d.data(); return {id: d.id, name: x.name || 'Untitled', updatedAt: x.updatedAt || ''}; }); }
+      catch (e) { this.db = null; toast('Cloud storage unavailable; using this device'); }
+    }
+    const idx = this.lsGet('eol.index') || [];
+    return idx.sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+  },
+  async get(id) {
+    if (this.usesDb()) { try { const s = await this.db.doc('projects/' + id).get(); if (s.exists) return normalize(Object.assign({}, s.data(), {id})); } catch {} }
+    const p = this.lsGet('eol.p.' + id); return p ? normalize(p) : null;
+  },
+  async put(p) {
+    const body = JSON.parse(JSON.stringify(p));
+    if (this.usesDb()) {
+      try { await this.db.doc('projects/' + p.id).set(body); return 'cloud'; }
+      catch (e) { if (e && e.code === 'quota_exceeded') throw e; this.db = null; }
+    }
+    const ok = this.lsSet('eol.p.' + p.id, body);
+    const idx = (this.lsGet('eol.index') || []).filter(x => x.id !== p.id); idx.unshift({id: p.id, name: p.name, updatedAt: p.updatedAt}); this.lsSet('eol.index', idx);
+    return ok ? 'local' : 'memory';
+  },
+  async del(id) {
+    if (this.usesDb()) { try { await this.db.doc('projects/' + id).delete(); await this.db.doc('revisions/' + id).delete(); } catch {} }
+    this.lsDel('eol.p.' + id); this.lsDel('eol.rev.' + id); this.lsSet('eol.index', (this.lsGet('eol.index') || []).filter(x => x.id !== id));
+  },
+  async listTemplates() {
+    if (this.usesDb()) { try { const qs = await this.db.collection('templates').limit(200).get(); return qs.docs.filter(d => d.exists).map(d => Object.assign({id: d.id}, d.data())); } catch {} }
+    return this.lsGet('eol.templates') || [];
+  },
+  async putTemplate(t) {
+    if (this.usesDb()) { try { await this.db.doc('templates/' + t.id).set(JSON.parse(JSON.stringify(t))); return; } catch (e) { if (e && e.code === 'quota_exceeded') throw e; } }
+    const all = (this.lsGet('eol.templates') || []).filter(x => x.id !== t.id); all.unshift(t); this.lsSet('eol.templates', all);
+  },
+  async delTemplate(id) {
+    if (this.usesDb()) { try { await this.db.doc('templates/' + id).delete(); } catch {} }
+    this.lsSet('eol.templates', (this.lsGet('eol.templates') || []).filter(x => x.id !== id));
+  },
+  async getRevs(pid) {
+    if (this.usesDb()) { try { const s = await this.db.doc('revisions/' + pid).get(); if (s.exists) return (s.data().items || []); } catch {} }
+    return (this.lsGet('eol.rev.' + pid) || {}).items || [];
+  },
+  async putRevs(pid, items) {
+    if (this.usesDb()) { try { await this.db.doc('revisions/' + pid).set({items: JSON.parse(JSON.stringify(items)), updatedAt: new Date().toISOString()}); return; } catch (e) { if (e && e.code === 'quota_exceeded' || (e && e.code === 'invalid_argument')) throw e; } }
+    if (!this.lsSet('eol.rev.' + pid, {items})) throw new Error('local');
+  }
+};
+function setStatus(t, err) { const el = $('#status'); el.textContent = t; el.classList.toggle('err', !!err); }
+function scheduleSave() {
+  clearTimeout(S.saveTimer); setStatus('Unsaved changes');
+  S.saveTimer = setTimeout(flushSave, 700);
+}
+async function flushSave() {
+  clearTimeout(S.saveTimer); S.saveTimer = null;
+  const p = P(); if (!p) return;
+  setStatus('Saving…');
+  try {
+    const where = await store.put(p);
+    const i = S.list.findIndex(x => x.id === p.id);
+    const entry = {id: p.id, name: p.name, updatedAt: p.updatedAt};
+    if (i >= 0) S.list[i] = entry; else S.list.unshift(entry);
+    S.list.sort((a,b) => (b.updatedAt||'').localeCompare(a.updatedAt||''));
+    renderProjectSelect();
+    const t = new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+    setStatus(where === 'cloud' ? `Saved ${t}` : where === 'local' ? `Saved on this device ${t}` : 'Not saved: storage unavailable', where === 'memory');
+  } catch (e) { setStatus(e && e.code === 'quota_exceeded' ? 'Not saved: storage full. Delete old projects.' : 'Save failed', true); }
+}
+
+/* ───────── geometry & routing ───────── */
+function portOf(n, tx, ty, role) {
+  const g = geom(n), dx = tx - n.x, dy = ty - n.y;
+  if (n.type === 'bus') {
+    const half = g.w / 2;
+    if ((tx > n.x - half - 4 && tx < n.x + half + 4) || Math.abs(dy) > 24) return {x: clamp(tx, n.x - half + 6, n.x + half - 6), y: n.y, axis: 'v'};
+    return {x: dx < 0 ? n.x - half : n.x + half, y: n.y, axis: 'h'};
+  }
+  if (n.type === 'ats' && role === 'in') return {x: dx < 0 ? n.x - 36 : n.x + 36, y: n.y - g.h / 2, axis: 'v'};
+  if (Math.abs(dy) >= Math.abs(dx) || Math.abs(dy) > g.h) return dy >= 0 ? {x: n.x, y: n.y + g.h / 2, axis: 'v'} : {x: n.x, y: n.y - g.h / 2, axis: 'v'};
+  return dx >= 0 ? {x: n.x + g.w / 2, y: n.y, axis: 'h'} : {x: n.x - g.w / 2, y: n.y, axis: 'h'};
+}
+// A link's route is built from its two ports plus an optional list of bend coordinates (l.bends).
+// Segments alternate direction starting with the first port's axis; each bend value is where that
+// segment ends along its own axis. Whatever the bends say, the route always finishes on the second
+// port, so dragging a line can never disconnect it.
+const other = a => a === 'v' ? 'h' : 'v';
+function routeRaw(l) {
+  const a = node(l.from), b = node(l.to); if (!a || !b) return null;
+  const p1 = portOf(a, b.x, b.y, 'out'), p2 = portOf(b, a.x, a.y, 'in');
+  let dir = p1.axis, cx = p1.x, cy = p1.y; const pts = [[cx, cy]];
+  for (const c of (Array.isArray(l.bends) ? l.bends : [])) { if (dir === 'v') cy = c; else cx = c; pts.push([cx, cy]); dir = other(dir); }
+  if (dir === p2.axis) {
+    const aligned = dir === 'v' ? Math.abs(cx - p2.x) < .5 : Math.abs(cy - p2.y) < .5;
+    if (!aligned) { if (dir === 'v') { cy = (cy + p2.y) / 2; pts.push([cx, cy]); cx = p2.x; pts.push([cx, cy]); } else { cx = (cx + p2.x) / 2; pts.push([cx, cy]); cy = p2.y; pts.push([cx, cy]); } }
+  } else { if (dir === 'v') cy = p2.y; else cx = p2.x; pts.push([cx, cy]); }
+  pts.push([p2.x, p2.y]);
+  return {pts, a1: p1.axis, a2: p2.axis};
+}
+const segAxis = (a1, k) => k % 2 === 0 ? a1 : other(a1);
+// Orthogonal route as clean points (no zero-length runs, no collinear joints).
+function linkPts(l) {
+  const r = routeRaw(l); if (!r) return null;
+  const out = [];
+  r.pts.forEach(pt => { const last = out[out.length - 1]; if (last && Math.abs(last[0] - pt[0]) < .5 && Math.abs(last[1] - pt[1]) < .5) return; out.push(pt); });
+  for (let i = out.length - 2; i > 0; i--) { const [ax, ay] = out[i - 1], [bx, by] = out[i], [cx, cy] = out[i + 1]; if ((Math.abs(ax - bx) < .5 && Math.abs(bx - cx) < .5) || (Math.abs(ay - by) < .5 && Math.abs(by - cy) < .5)) out.splice(i, 1); }
+  return out.length > 1 ? out : null;
+}
+// Bends that reproduce the current route exactly, one per segment except the last.
+function explicitBends(r) { const n = r.pts.length - 1, F = []; for (let k = 0; k < n - 1; k++) F.push(segAxis(r.a1, k) === 'v' ? r.pts[k + 1][1] : r.pts[k + 1][0]); return F; }
+// New bends after dragging raw segment s to perpendicular position pos.
+function dragBends(r, F, s, pos) {
+  const n = r.pts.length - 1, ax = segAxis(r.a1, s), along = ax === 'v' ? 1 : 0;
+  const stub = (from, to) => from + Math.sign(to - from || 1) * Math.max(Math.min(16, Math.round(Math.abs(to - from) / 3)), Math.min(4, Math.abs(to - from)));
+  if (n === 1) { const a = r.pts[0][along], b = r.pts[1][along]; return [stub(a, b), pos, stub(b, a)]; }
+  if (s === 0) { const a = r.pts[0][along], b = r.pts[1][along]; return [stub(a, b), pos].concat(F); }
+  if (s === n - 1) { const a = r.pts[n - 1][along], b = r.pts[n][along]; return F.slice(0, n - 2).concat([pos, stub(b, a)]); }
+  const G = F.slice(); G[s - 1] = pos; return G;
+}
+// Shift manual bends of links whose both ends are moving together.
+function shiftBends(ids, starts, dx, dy) {
+  P().links.forEach(l => { if (!l.bends || !ids.has(l.from) || !ids.has(l.to)) return; const st = starts[l.id]; if (!st) return; l.bends = st.F.map((c, k) => c + (segAxis(st.a1, k) === 'v' ? dy : dx)); });
+}
+function bendStarts(ids) { const o = {}; P().links.forEach(l => { if (l.bends && ids.has(l.from) && ids.has(l.to)) { const r = routeRaw(l); if (r) o[l.id] = {F: l.bends.slice(), a1: r.a1}; } }); return o; }
+// Nearest non-empty raw segment to a world point.
+function nearestSeg(r, wx, wy) {
+  let best = -1, bd = Infinity;
+  for (let k = 0; k < r.pts.length - 1; k++) { const [x1, y1] = r.pts[k], [x2, y2] = r.pts[k + 1]; if (Math.abs(x1 - x2) < .5 && Math.abs(y1 - y2) < .5) continue;
+    const t = Math.max(0, Math.min(1, ((wx - x1) * (x2 - x1) + (wy - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2))); const d = Math.hypot(wx - (x1 + t * (x2 - x1)), wy - (y1 + t * (y2 - y1))); if (d < bd) { bd = d; best = k; } }
+  return best;
+}
+// Every link's path, with a hop wherever it crosses another link (the horizontal run hops)
+// or passes over a bus it is not connected to (the vertical run hops).
+function linkPaths(p = P()) {
+  const HR = 7, BR = 9, r = v => Math.round(v * 10) / 10;
+  const routes = p.links.map(l => ({l, pts: linkPts(l)})).filter(o => o.pts && o.pts.length > 1);
+  const segs = []; routes.forEach((o, ri) => { for (let i = 0; i < o.pts.length - 1; i++) { const [x1, y1] = o.pts[i], [x2, y2] = o.pts[i + 1]; if (Math.abs(x1 - x2) < .5 && Math.abs(y1 - y2) < .5) continue; segs.push({ri, i, x1, y1, x2, y2, h: Math.abs(y1 - y2) < .5}); } });
+  const vSegs = segs.filter(g => !g.h), hSegs = segs.filter(g => g.h);
+  const buses = p.nodes.filter(n => n.type === 'bus');
+  const hops = new Map(); const add = (ri, i, at, rad) => { const k = ri + ':' + i; if (!hops.has(k)) hops.set(k, []); hops.get(k).push({at, rad}); };
+  hSegs.forEach(h => { const xa = Math.min(h.x1, h.x2), xb = Math.max(h.x1, h.x2);
+    vSegs.forEach(v => { if (v.ri === h.ri) return; const ya = Math.min(v.y1, v.y2), yb = Math.max(v.y1, v.y2);
+      if (v.x1 > xa + HR + 1 && v.x1 < xb - HR - 1 && h.y1 > ya + 2 && h.y1 < yb - 2) add(h.ri, h.i, v.x1, HR); }); });
+  vSegs.forEach(v => { const ya = Math.min(v.y1, v.y2), yb = Math.max(v.y1, v.y2), l = routes[v.ri].l;
+    buses.forEach(b => { if (b.id === l.from || b.id === l.to) return; const half = geom(b).w / 2;
+      if (v.x1 > b.x - half + 1 && v.x1 < b.x + half - 1 && b.y > ya + BR + 1 && b.y < yb - BR - 1) add(v.ri, v.i, b.y, BR); }); });
+  const out = new Map();
+  routes.forEach((o, ri) => {
+    let d = `M${r(o.pts[0][0])} ${r(o.pts[0][1])}`;
+    for (let i = 0; i < o.pts.length - 1; i++) {
+      const [x1, y1] = o.pts[i], [x2, y2] = o.pts[i + 1], hs = hops.get(ri + ':' + i);
+      if (hs && hs.length) {
+        const horiz = Math.abs(y1 - y2) < .5, dir = horiz ? Math.sign(x2 - x1) : Math.sign(y2 - y1);
+        hs.sort((a, b) => (a.at - b.at) * dir).forEach(hp => {
+          if (horiz) d += `L${r(hp.at - hp.rad * dir)} ${r(y1)}A${hp.rad} ${hp.rad} 0 0 ${dir > 0 ? 1 : 0} ${r(hp.at + hp.rad * dir)} ${r(y1)}`;
+          else d += `L${r(x1)} ${r(hp.at - hp.rad * dir)}A${hp.rad} ${hp.rad} 0 0 ${dir > 0 ? 1 : 0} ${r(x1)} ${r(hp.at + hp.rad * dir)}`;
+        });
+      }
+      d += `L${r(x2)} ${r(y2)}`;
+    }
+    out.set(o.l.id, d);
+  });
+  return out;
+}
+const linkPath = l => linkPaths().get(l.id) || '';
+/* voltage systems */
+const VC_DEFAULT = {'34.5kV': '#7a3fb8', '13.8kV': '#c4342a', '4.16kV': '#d9770b', '480/277V': '#1f66c9', '208/120V': '#23934f', '125VDC': '#b5307a'};
+const VC_SPARE = ['#0f8a8a', '#8a6a0f', '#5560a6', '#a04a26', '#3f7d2f', '#8a3f6e', '#2a7aa0'];
+function userColorDefaults() { try { const v = JSON.parse(localStorage.getItem('eol.colors')); if (v && v.map) return v; } catch {} return {on: true, map: Object.assign({}, VC_DEFAULT)}; }
+const spareColor = v => { let h = 0; for (const ch of v) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return VC_SPARE[h % VC_SPARE.length]; };
+const voltColor = (v, p = P()) => v ? ((p.colors && p.colors.map[v]) || spareColor(v)) : null;
+// Lighten user colors on a dark canvas so they keep contrast; exports always use the picked color.
+function screenColor(hex) {
+  if (!hex) return hex; const dark = document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  if (!dark) return hex; const n = parseInt(hex.slice(1), 16); const mix = c => Math.round(c + (255 - c) * .32);
+  return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(c => mix(c).toString(16).padStart(2, '0')).join('');
+}
+// The voltage system of every drawn node: {v: its own system, out: what it feeds}. Explicit voltages win;
+// the rest inherit from upstream (or, failing that, downstream). Transformers bridge primary → secondary.
+function sysVolts(p = P()) {
+  const m = new Map(), nodes = p.nodes.filter(n => !TYPES[n.type].proc), byId = new Map(nodes.map(n => [n.id, n]));
+  const ins = new Map(), outs = new Map(); nodes.forEach(n => { ins.set(n.id, []); outs.set(n.id, []); });
+  p.links.forEach(l => { if (ins.has(l.to) && outs.has(l.from)) { ins.get(l.to).push(l.from); outs.get(l.from).push(l.to); } });
+  nodes.forEach(n => { if (XF.has(n.type)) m.set(n.id, {v: n.volt || '', out: n.volt2 || ''}); else if (n.volt) m.set(n.id, {v: n.volt, out: n.volt}); });
+  for (let pass = 0; pass < 40; pass++) {
+    let ch = false;
+    nodes.forEach(n => {
+      const cur = m.get(n.id), xf = XF.has(n.type);
+      if (!cur || !cur.v) {
+        let v = ''; for (const u of ins.get(n.id)) { const s = m.get(u); if (s && s.out) { v = s.out; break; } }
+        if (!v) for (const d of outs.get(n.id)) { const s = m.get(d); if (s && s.v) { v = s.v; break; } }
+        if (v) { m.set(n.id, xf ? {v, out: cur ? cur.out : ''} : {v, out: v}); ch = true; }
+      }
+      const c2 = m.get(n.id);
+      if (xf && c2 && !c2.out) { for (const d of outs.get(n.id)) { const s = m.get(d); if (s && s.v && !XF.has(byId.get(d).type)) { c2.out = s.v; ch = true; break; } } }
+    });
+    if (!ch) break;
+  }
+  return m;
+}
+// Recolor a symbol's strokes and fills.
+function paint(markup, c) {
+  if (!c) return markup;
+  return markup.replace(/class="sym closed"/g, `style="stroke:${c};fill:${c}" class="sym closed"`).replace(/class="sym( thin)?"/g, `style="stroke:${c}" class="sym$1"`)
+    .replace(/class="bus"/g, `style="stroke:${c}" class="bus"`).replace(/class="fillsym"/g, `style="fill:${c}" class="fillsym"`).replace(/class="dot"/g, `style="fill:${c}" class="dot"`);
+}
+function legendSVG(p = P(), dark = false) { // voltage swatches for the systems on this drawing
+  if (!p.colors || !p.colors.on) return {svg: '', w: 0};
+  const used = [...new Set([...sysVolts(p).values()].flatMap(s => [s.v, s.out]).filter(Boolean))];
+  const order = Object.keys(VC_DEFAULT); used.sort((a, b) => ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99) || a.localeCompare(b));
+  let x = 0, s = '';
+  used.forEach(v => { const c = voltColor(v, p); s += `<line x1="${x}" y1="0" x2="${x + 22}" y2="0" stroke="${c}" stroke-width="4"/><text x="${x + 28}" y="3.5" class="tbk">${esc(v)}</text>`; x += 40 + v.length * 6.6; });
+  return {svg: s, w: x};
+}
+function bbox(n) { const g = geom(n); const h = n.type === 'bus' ? 14 : g.h; return {x: n.x - g.w/2, y: n.y - h/2, w: g.w, h}; }
+function descendants(id) { const out = new Set([id]); const q = [id]; while (q.length) { const c = q.shift(); P().links.forEach(l => { if (l.from === c && !out.has(l.to)) { out.add(l.to); q.push(l.to); } }); } return out; }
+
+/* live state for walk mode */
+function liveMap(cur) {
+  const memo = new Map(), visiting = new Set();
+  const isLive = id => {
+    if (memo.has(id)) return memo.get(id); if (visiting.has(id)) return false; visiting.add(id);
+    const n = node(id); let v = false; const up = () => P().links.some(l => l.to === id && isLive(l.from));
+    if (TYPES[n.type].gnd) v = false;
+    else if (n.type === 'source' || n.type === 'generator') v = n.step === 0 || n.step <= cur;
+    else if (STATEFUL.has(n.type)) v = effState(n, cur) === 'closed' && up();
+    else if (n.step > 0) v = n.step <= cur && !n.stayOpen && (up() || !P().links.some(l => l.to === id));
+    else v = up();
+    visiting.delete(id); memo.set(id, v); return v;
+  };
+  P().nodes.forEach(n => isLive(n.id));
+  return memo;
+}
+// Temporary grounds still installed at step `cur` whose attachment point is live.
+function groundHazards(cur, live) {
+  return P().nodes.filter(n => TYPES[n.type].gnd && (n.step === 0 || n.step > cur) && P().links.some(l => l.to === n.id && live.get(l.from)));
+}
+
+/* ───────── symbols ───────── */
+function symbol(n, st) {
+  st = st === undefined ? (n.state || 'open') : st;
+  const lock = `<rect x="10" y="-13" width="9" height="7" rx="1" class="fillsym"/><path d="M12 -13v-3a2.5 2.5 0 0 1 5 0v3" class="sym thin"/>`;
+  switch (n.type) {
+    case 'source': return `<circle r="14" class="sym"/><path d="M-8 0q4 -8 8 0t8 0" class="sym thin"/>`;
+    case 'breaker': return `<rect x="-10" y="-10" width="20" height="20" class="sym${st === 'closed' ? ' closed' : ''}"${st === 'racked' ? ' stroke-dasharray="3 2"' : ''}/>${st === 'racked' ? '<path d="M-7 -14h14M-7 14h14" class="sym thin"/>' : ''}${st === 'locked' ? lock : ''}`;
+    case 'switch': return `<line x1="0" y1="-14" x2="0" y2="-7" class="sym"/>${st === 'closed' ? '<line x1="0" y1="-7" x2="0" y2="7" class="sym"/>' : '<line x1="0" y1="-7" x2="9" y2="7" class="sym"/>'}<line x1="0" y1="7" x2="0" y2="14" class="sym"/><circle cy="7" r="1.8" class="dot"/>${st === 'locked' ? lock : ''}`;
+    case 'fswitch': return `<line x1="0" y1="-20" x2="0" y2="-14" class="sym"/>${st === 'closed' ? '<line x1="0" y1="-14" x2="0" y2="-2" class="sym"/>' : '<line x1="0" y1="-14" x2="8" y2="-2" class="sym"/>'}<circle cy="-2" r="1.8" class="dot"/><rect x="-5" y="-1" width="10" height="21" class="sym"/><line x1="0" y1="-1" x2="0" y2="20" class="sym thin"/>${st === 'locked' ? lock.replace('y="-13"', 'y="-20"').replace('M12 -13v-3a2.5 2.5 0 0 1 5 0v3', 'M12 -20v-3a2.5 2.5 0 0 1 5 0v3') : ''}`;
+    case 'meter': return `<circle r="14" class="sym"/><text class="glyph" y="4" style="font-size:9.5px">kWh</text>`;
+    case 'pt': return `<circle cx="-7" r="8" class="sym"/><circle cx="7" r="8" class="sym"/>`;
+    case 'ct': return `<line x1="0" y1="-11" x2="0" y2="11" class="sym"/><circle r="8" class="sym thin" style="fill:none"/>`;
+    case 'arrester': return `<line x1="0" y1="-17" x2="0" y2="-10" class="sym"/><rect x="-6" y="-10" width="12" height="16" class="sym"/><path d="M0 -8v10M-3 -1l3 3 3-3" class="sym thin"/><path d="M0 6v5M-8 11h16M-5 14h10M-2 17h4" class="sym"/>`;
+    case 'ups': return `<rect x="-30" y="-15" width="60" height="30" rx="3" class="sym"/><text class="glyph" y="4.5" style="font-size:12px">UPS</text>`;
+    case 'vfd': return `<rect x="-30" y="-15" width="60" height="30" rx="3" class="sym"/><text class="glyph" y="4.5" style="font-size:12px">VFD</text>`;
+    case 'cap': return `<line x1="0" y1="-14" x2="0" y2="-4" class="sym"/><line x1="-10" y1="-4" x2="10" y2="-4" class="sym"/><line x1="-10" y1="2" x2="10" y2="2" class="sym"/><line x1="0" y1="2" x2="0" y2="8" class="sym"/><path d="M-7 8h14M-4 11h8M-1 14h2" class="sym"/>`;
+    case 'ground': return `<line x1="0" y1="-12" x2="0" y2="-2" class="sym"/><path d="M-11 -2h22M-7 4h14M-3 10h6" class="sym"/><rect x="-13" y="-6" width="26" height="18" class="gndbox"/>`;
+    case 'fuse': return `<rect x="-5" y="-14" width="10" height="28" class="sym"/><line x1="0" y1="-14" x2="0" y2="14" class="sym thin"/>`;
+    case 'transformer': return `<circle cy="-11" r="14" class="sym"/><circle cy="11" r="14" class="sym"/>`;
+    case 'xfmr_oil': return `<rect x="-20" y="-30" width="40" height="60" rx="7" class="sym"/><path d="M20 -16h6M20 -8h6M20 0h6M20 8h6M20 16h6M-20 -16h-6M-20 -8h-6M-20 0h-6M-20 8h-6M-20 16h-6" class="sym thin"/><circle cy="-10" r="12" class="sym"/><circle cy="10" r="12" class="sym"/>`;
+    case 'xfmr_dry': return `<rect x="-20" y="-30" width="40" height="60" rx="1" class="sym" stroke-dasharray="5 3"/><circle cy="-10" r="12" class="sym"/><circle cy="10" r="12" class="sym"/>`;
+    case 'bus': { const h = geom(n).w / 2; return `<line x1="${-h}" y1="0" x2="${h}" y2="0" class="bus"/>`; }
+    case 'panel': return `<rect x="-55" y="-17" width="110" height="34" rx="3" class="sym"/>`;
+    case 'ats': return `<rect x="-60" y="-18" width="120" height="36" rx="3" class="sym"/><text x="-36" y="-23" class="port">N</text><text x="36" y="-23" class="port">E</text>`;
+    case 'generator': return `<circle r="18" class="sym"/><text class="glyph" y="5">G</text>`;
+    case 'motor': return `<circle r="16" class="sym"/><text class="glyph" y="5">M</text>`;
+    case 'load': return `<line x1="0" y1="-12" x2="0" y2="5" class="sym"/><path d="M-6 3L0 12L6 3Z" class="fillsym"/>`;
+  }
+  return '';
+}
+function nodeSVG(n, o = {}) {
+  const sub = subText(n);
+  const g = geom(n), ls = n.labelSide || 'r', side = ls === 'l' ? -1 : 1, inside = n.type === 'panel' || n.type === 'ats';
+  const cls = ['node']; if (o.sel) cls.push('sel'); if (o.live) cls.push('live'); if (o.cur) cls.push('cur'); if (o.from) cls.push('connect-from'); if (o.hazard) cls.push('hazard'); if (o.removed) cls.push('removed');
+  let s = `<g class="${cls.join(' ')}" data-node="${n.id}" transform="translate(${n.x} ${n.y})">`;
+  const bb = bbox(n); s += `<rect class="hit" x="${bb.x - n.x - HITPAD}" y="${bb.y - n.y - HITPAD}" width="${bb.w + 2 * HITPAD}" height="${bb.h + 2 * HITPAD}"/>`;
+  let sym = symbol(n, o.state);
+  if (o.color2 !== undefined && XF.has(n.type)) {
+    const c1 = o.color, c2 = o.color2;
+    sym = sym.replace(/<circle cy="-1([01])" r="(\d+)" class="sym"\/>/, (m0, a, rr) => c1 ? `<circle cy="-1${a}" r="${rr}" style="stroke:${c1}" class="sym"/>` : m0)
+             .replace(/<circle cy="1([01])" r="(\d+)" class="sym"\/>/, (m0, a, rr) => c2 ? `<circle cy="1${a}" r="${rr}" style="stroke:${c2}" class="sym"/>` : m0);
+  } else sym = paint(sym, o.color);
+  s += sym;
+  const lx = side * (g.w / 2 + 10), anchor = side > 0 ? 'start' : 'end';
+  const hh = bb.h / 2;
+  if (n.type === 'bus') {
+    const ex = ls === 'a' || ls === 'b' ? 0 : side * g.w / 2, an = ls === 'a' || ls === 'b' ? 'middle' : side > 0 ? 'end' : 'start', ly = ls === 'b' ? 20 : -8;
+    s += `<text class="lbl" x="${ex}" y="${ly}" text-anchor="${an}">${esc(n.label)}${sub ? `<tspan class="sub"> · ${esc(sub)}</tspan>` : ''}</text>`;
+  } else if (inside) {
+    s += `<text class="inlbl" y="4.5">${esc(n.label)}</text>`;
+    if (sub) s += ls === 'a' ? `<text class="sub" y="${-(hh + 8)}" text-anchor="middle">${esc(sub)}</text>` : ls === 'b' ? `<text class="sub" y="${hh + 15}" text-anchor="middle">${esc(sub)}</text>` : `<text class="sub" x="${lx}" y="4" text-anchor="${anchor}">${esc(sub)}</text>`;
+  } else if (ls === 'a') {
+    s += sub ? `<text class="lbl" y="${-(hh + 21)}" text-anchor="middle">${esc(n.label)}</text><text class="sub" y="${-(hh + 7)}" text-anchor="middle">${esc(sub)}</text>` : `<text class="lbl" y="${-(hh + 8)}" text-anchor="middle">${esc(n.label)}</text>`;
+  } else if (ls === 'b') {
+    s += `<text class="lbl" y="${hh + 16}" text-anchor="middle">${esc(n.label)}</text>` + (sub ? `<text class="sub" y="${hh + 30}" text-anchor="middle">${esc(sub)}</text>` : '');
+  } else if (XF.has(n.type) && sub && (ls === 'r' || ls === 'l')) {
+    const v = voltText(n), r2 = [ratingText(n), n.sub].filter(Boolean).join(' · '), l1 = v || r2, l2 = v ? r2 : '';
+    s += `<text class="lbl" x="${lx}" y="${l2 ? -9 : -2}" text-anchor="${anchor}">${esc(n.label)}</text><text class="sub" x="${lx}" y="${l2 ? 6 : 13}" text-anchor="${anchor}">${esc(l1)}</text>` + (l2 ? `<text class="sub" x="${lx}" y="20" text-anchor="${anchor}">${esc(l2)}</text>` : '');
+  } else if (sub) {
+    s += `<text class="lbl" x="${lx}" y="-2" text-anchor="${anchor}">${esc(n.label)}</text><text class="sub" x="${lx}" y="13" text-anchor="${anchor}">${esc(sub)}</text>`;
+  } else {
+    s += `<text class="lbl" x="${lx}" y="4.5" text-anchor="${anchor}">${esc(n.label)}</text>`;
+  }
+  if (n.step > 0) {
+    let bx = -side * (g.w / 2 + 22), by = 0;
+    const bp = ['above','below','left','right'].includes(n.badgePos) ? n.badgePos : ls === 'a' ? 'below' : ls === 'b' ? 'above' : 'auto';
+    if (bp === 'above') { bx = 0; by = -(hh + 18); } else if (bp === 'below') { bx = 0; by = hh + 18; }
+    else if (bp === 'left') bx = -(g.w / 2 + 22); else if (bp === 'right') bx = g.w / 2 + 22;
+    s += `<g class="badge${n.hold ? ' hold' : ''}${n.status === 'done' ? ' done' : ''}" transform="translate(${bx} ${by})"><circle r="11"/><text y="4">${n.step}</text></g>`;
+  }
+  if (o.sel) {
+    s += `<rect class="selbox" x="${bb.x - n.x - 6}" y="${bb.y - n.y - 6}" width="${bb.w + 12}" height="${bb.h + 12}" rx="4"/>`;
+    if (n.type === 'bus') s += `<rect class="handle" data-handle="busw" x="${g.w / 2 - 4}" y="-5" width="9" height="10"/>`;
+  }
+  return s + '</g>';
+}
+
+/* ───────── canvas render ───────── */
+function renderCanvas() {
+  const p = P(); const v = S.view;
+  const live = S.walk.on ? liveMap(S.walk.cur) : null;
+  const curId = S.walk.on ? (seq().find(n => n.step === S.walk.cur) || {}).id : null;
+  const hz = S.walk.on ? new Set(groundHazards(S.walk.cur, live).map(n => n.id)) : new Set();
+  const colOn = !!(p.colors && p.colors.on), SV = colOn ? sysVolts(p) : null, LP = linkPaths(p);
+  const showCol = id => colOn && (!S.walk.on || (live && live.get(id)));
+  const nColor = n => { if (!showCol(n.id) || hz.has(n.id)) return {}; const sv = SV.get(n.id) || {}; return XF.has(n.type) ? {color: screenColor(voltColor(sv.v)), color2: screenColor(voltColor(sv.out))} : {color: screenColor(voltColor(sv.v))}; };
+  let out = `<defs><pattern id="grid" width="${GRID*4}" height="${GRID*4}" patternUnits="userSpaceOnUse" patternTransform="translate(${v.x} ${v.y}) scale(${v.k})"><path d="M${GRID*4} 0H0V${GRID*4}" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern></defs>`;
+  out += `<rect width="100%" height="100%" fill="url(#grid)" data-bg="1"/>`;
+  out += `<g transform="translate(${v.x} ${v.y}) scale(${v.k})">`;
+  if (p.bg && p.bg.data) out += `<image href="${p.bg.data}" x="${p.bg.x}" y="${p.bg.y}" width="${p.bg.w}" height="${p.bg.w * p.bg.ar}" opacity="${p.bg.opacity}" preserveAspectRatio="none" style="pointer-events:none"/>`;
+  for (const l of p.links) {
+    const d = LP.get(l.id); if (!d) continue; const selL = S.sel && S.sel.kind === 'link' && S.sel.id === l.id;
+    const cls = ['link-g']; if (selL) cls.push('sel'); if (live && live.get(l.from)) cls.push('live');
+    const c = !selL && showCol(l.from) ? screenColor(voltColor((SV.get(l.from) || {}).out)) : null;
+    out += `<g class="${cls.join(' ')}" data-link="${l.id}"><path class="linkhit" d="${d}"/><path class="link" d="${d}"${c ? ` style="stroke:${c}"` : ''}/>`;
+    if (selL) { const pts = linkPts(l) || []; for (let i = 0; i < pts.length - 1; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[i + 1]; if (Math.hypot(x2 - x1, y2 - y1) < 14) continue; const h = Math.abs(y1 - y2) < .5; out += `<rect class="seghandle ${h ? 'h' : 'v'}" x="${(x1 + x2) / 2 - (h ? 7 : 4)}" y="${(y1 + y2) / 2 - (h ? 4 : 7)}" width="${h ? 14 : 8}" height="${h ? 8 : 14}" rx="2"/>`; } }
+    out += `</g>`;
+  }
+  for (const n of p.nodes) {
+    if (TYPES[n.type].proc) continue;
+    out += nodeSVG(n, {...nColor(n), sel: isSel(n.id), live: live && live.get(n.id), cur: n.id === curId, from: S.connectFrom === n.id, state: effState(n, S.walk.on ? S.walk.cur : null), hazard: hz.has(n.id), removed: S.walk.on && TYPES[n.type].gnd && n.step > 0 && n.step <= S.walk.cur});
+  }
+  if (S.marquee) { const m = S.marquee; out += `<rect class="marquee" x="${Math.min(m.x0, m.x1)}" y="${Math.min(m.y0, m.y1)}" width="${Math.abs(m.x1 - m.x0)}" height="${Math.abs(m.y1 - m.y0)}"/>`; }
+  out += '</g>';
+  svg.innerHTML = out;
+  svg.classList.toggle('walk', S.walk.on); svg.classList.toggle('connect', S.mode === 'connect'); svg.classList.toggle('box', S.mode === 'box'); svg.classList.toggle('vcolor', colOn);
+  $('#empty').hidden = p.nodes.some(n => !TYPES[n.type].proc) || !!(p.bg && p.bg.data);
+}
+
+/* ───────── sequence panel ───────── */
+function renderSeq() {
+  const list = seq(); const el = $('#seqlist');
+  if (!list.length) { el.innerHTML = '<div class="none">No steps yet. Select a device and set its step number, or use Auto-number.</div>'; return; }
+  el.innerHTML = list.map(n => {
+    const sel = isSel(n.id);
+    return `<div class="row${sel ? ' sel' : ''}" data-seq="${n.id}" role="button" tabindex="0">
+      <div class="n${n.hold ? ' hold' : ''}${n.status === 'done' ? ' done' : ''}">${n.step}</div>
+      <div class="m"><div class="t">${esc(n.label)}${TYPES[n.type].proc ? '<span class="proc">procedure</span>' : ''}${n.hold ? '<span class="proc" style="color:var(--hold)">hold point</span>' : ''}</div><div class="a">${esc(n.action || (TYPES[n.type].proc ? '' : 'Close ' + n.label))}</div></div>
+      <div class="ra"><button data-act="up" title="Move earlier" aria-label="Move earlier">▲</button><button data-act="down" title="Move later" aria-label="Move later">▼</button><button data-act="status" class="chip${n.status === 'done' ? ' done' : ''}" title="Toggle done">${n.status === 'done' ? 'done' : 'open'}</button></div>
+    </div>`;
+  }).join('');
+  const r = el.querySelector('.row.sel'); if (r && S.scrollSeq) { r.scrollIntoView({block: 'nearest'}); S.scrollSeq = false; }
+}
+
+/* ───────── inspector ───────── */
+function field(label, id, val, type = 'text', extra = '') { return `<div class="f"><label for="${id}">${label}</label><input type="${type}" id="${id}" value="${esc(val)}" ${extra}></div>`; }
+function area(label, id, val, rows = 2) { return `<div class="f"><label for="${id}">${label}</label><textarea id="${id}" rows="${rows}">${esc(val)}</textarea></div>`; }
+function renderInsp() {
+  const el = $('#insp'); const p = P();
+  if (S.sel && S.sel.kind === 'link') {
+    const l = p.links.find(x => x.id === S.sel.id); if (!l) { S.sel = null; return renderInsp(); }
+    const a = node(l.from), b = node(l.to);
+    el.innerHTML = `<div class="head"><h2>Connection</h2><span class="type">link</span></div>
+      <p class="help" style="margin:0 0 8px">Power flows <b>${esc(a.label)}</b> → <b>${esc(b.label)}</b>. Direction decides what lights up in Walk mode.</p>
+      <p class="help" style="margin:0 0 8px"><b>Move it:</b> drag any run of this line (the small handles mark each run). Horizontal runs slide up and down, vertical runs slide left and right. Dragging the run at a device adds a jog, so both ends stay connected. ${l.bends ? 'Double-click the line or use <b>Reset route</b> to go back to automatic.' : 'This line is routed automatically.'}</p>
+      <div class="acts">${l.bends ? '<button class="btn sm" id="lReset">Reset route</button>' : ''}<button class="btn sm" id="lRev">Reverse direction</button><button class="btn sm danger" id="lDel">Delete connection</button></div>`;
+    $('#lRev').onclick = () => { commit(); [l.from, l.to] = [l.to, l.from]; delete l.bends; changed(); };
+    if ($('#lReset')) $('#lReset').onclick = () => { commit(); delete l.bends; changed(); };
+    $('#lDel').onclick = () => deleteSelection();
+    return;
+  }
+  if (S.sel && S.sel.kind === 'nodes') {
+    const ns = S.sel.ids.map(node).filter(Boolean); if (ns.length < 2) { setSel(ns.map(n => n.id)); return renderInsp(); }
+    const kinds = [...new Set(ns.map(n => TYPES[n.type].name))];
+    el.innerHTML = `<div class="head"><h2>${ns.length} devices selected</h2><span class="type">${esc(kinds.length > 2 ? kinds.length + ' types' : kinds.join(', '))}</span></div>
+      <div class="f"><label>Align</label><div class="acts" style="margin:0">${[['left','⇤ Left'],['center','Center'],['right','Right ⇥'],['top','⤒ Top'],['middle','Middle'],['bottom','Bottom ⤓']].map(([k,t]) => `<button class="btn sm" data-align="${k}">${t}</button>`).join('')}</div></div>
+      <div class="f"><label>Distribute evenly</label><div class="acts" style="margin:0"><button class="btn sm" data-align="disth"${ns.length < 3 ? ' disabled' : ''}>Horizontally</button><button class="btn sm" data-align="distv"${ns.length < 3 ? ' disabled' : ''}>Vertically</button></div></div>
+      <div class="f2"><div class="f"><label for="mVolt">Set voltage on all</label><select id="mVolt">${optList(VOLTS, '')}</select></div><div class="f"><label for="mAmps">Set current rating on all</label><select id="mAmps">${optList(AMPS, '')}</select></div></div>
+      <div class="f2"><div class="f"><label for="mBy">Set “By” on all</label><input type="text" id="mBy" placeholder="e.g. Switching electrician"></div><div class="f"><label for="mWit">Set “Witness” on all</label><input type="text" id="mWit" placeholder="e.g. EOR"></div></div>
+      <div class="acts"><button class="btn sm" id="mCopy">Copy</button><button class="btn sm" id="mSeq">Add all to sequence</button><button class="btn sm danger" id="mDel">Delete ${ns.length}</button></div>
+      <p class="help" style="margin:8px 0 0">Shift-click adds or removes a device. Drag any selected device to move them all. Ctrl+C / Ctrl+V copies and pastes with connections.</p>`;
+    el.querySelectorAll('[data-align]').forEach(b => b.onclick = () => alignSel(b.dataset.align));
+    const bulk = (id, key, norm) => $('#' + id).addEventListener('change', e => { const t = e.target; if (t.value === '__other') return onOther(t, v => { if (v) { commit(); ns.forEach(n => { if (!(key === 'amps' && XF.has(n.type))) n[key] = norm(v); }); } changed(); }); if (!t.value) return; commit(); ns.forEach(n => { if (!(key === 'amps' && XF.has(n.type))) n[key] = t.value; }); changed({keepInsp: true}); });
+    bulk('mVolt', 'volt', NORM.volt); bulk('mAmps', 'amps', NORM.amps);
+    $('#mBy').addEventListener('change', e => { commit(); ns.forEach(n => n.by = e.target.value); changed({keepInsp: true}); });
+    $('#mWit').addEventListener('change', e => { commit(); ns.forEach(n => n.witness = e.target.value); changed({keepInsp: true}); });
+    $('#mCopy').onclick = copySel; $('#mDel').onclick = deleteSelection;
+    $('#mSeq').onclick = () => { commit(); let k = seq().length; ns.filter(n => n.step === 0 && TYPES[n.type].sw).sort((a, b) => a.y - b.y || a.x - b.x).forEach(n => n.step = ++k); changed(); };
+    return;
+  }
+  if (S.sel && S.sel.kind === 'node') {
+    const n = node(S.sel.id); if (!n) { S.sel = null; return renderInsp(); }
+    const T = TYPES[n.type], isProc = !!T.proc, inSeq = n.step > 0, maxStep = seq().length + (inSeq ? 0 : 1);
+    el.innerHTML = `<div class="head"><h2>${isProc ? 'Procedure step' : 'Device'}</h2><span class="type">${esc(T.name)}</span></div>
+      ${isProc ? '' : `<div class="f"><label for="iType">Symbol</label><select id="iType">${DRAWN.filter(t => !TYPES[t].hidden || t === n.type).map(t => `<option value="${t}"${t === n.type ? ' selected' : ''}>${TYPES[t].name}</option>`).join('')}</select></div>`}
+      ${field('Label / tag', 'iLabel', n.label)}
+      ${isProc ? '' : XF.has(n.type)
+        ? `<div class="f2"><div class="f"><label for="iVolt">Primary voltage</label><select id="iVolt">${optList(VOLTS, n.volt)}</select></div><div class="f"><label for="iVolt2">Secondary voltage</label><select id="iVolt2">${optList(VOLTS, n.volt2)}</select></div></div>`
+        : `<div class="f2"><div class="f"><label for="iVolt">Voltage</label><select id="iVolt">${optList(VOLTS, n.volt)}</select></div><div class="f"><label for="iAmps">Current rating</label><select id="iAmps">${optList(AMPS, n.amps)}</select></div></div>`}
+      ${!isProc && XF.has(n.type) ? `<div class="f2"><div class="f"><label for="iKva">kVA rating</label><select id="iKva">${kvaOpts(n.kva)}</select></div><div></div></div>` : ''}
+      <div class="f2">${field(isProc ? 'Detail' : 'Note (printed after ratings)', 'iSub', n.sub)}
+        ${isProc ? '' : `<div class="f"><label for="iSide">Label side</label><select id="iSide">${[['r','Right'],['l','Left'],['a','Above'],['b','Below']].map(([v,t]) => `<option value="${v}"${(n.labelSide || 'r') === v ? ' selected' : ''}>${t}</option>`).join('')}</select></div>`}</div>
+      ${STATEFUL.has(n.type) ? `<div class="f2"><div class="f"><label for="iState">Device state (as drawn / before its step)</label><select id="iState">${STATES.map(([v,t]) => `<option value="${v}"${(n.state || 'open') === v ? ' selected' : ''}>${t}</option>`).join('')}</select></div><div></div></div>` : ''}
+      ${isProc ? '' : `<div class="f2"><div class="f"><label for="iBadge">Step badge</label><select id="iBadge">${[['auto','Opposite the label'],['left','Left'],['right','Right'],['above','Above'],['below','Below']].map(([v,t]) => `<option value="${v}"${(['above','below','left','right'].includes(n.badgePos) ? n.badgePos : 'auto') === v ? ' selected' : ''}>${t}</option>`).join('')}</select></div>${n.type === 'bus' ? field('Bus width', 'iW', n.w, 'number', 'min="40" step="8"') : '<div></div>'}</div>`}
+      <div class="seqbox">
+        <div class="row1"><input type="number" id="iStep" min="0" max="${maxStep}" value="${n.step}" aria-label="Step number"><label for="iStep">${inSeq ? (T.gnd ? 'Removed at step (0 = never removed)' : 'Energization step (0 removes it)') : 'Not in the sequence'}</label>
+          <button class="btn sm${inSeq ? '' : ' primary'}" id="iSeqBtn">${inSeq ? 'Remove' : 'Add as step ' + maxStep}</button></div>
+        <label class="chk"><input type="checkbox" id="iHold"${n.hold ? ' checked' : ''}> Witnessed hold point</label>
+        ${isProc ? '' : `<label class="chk"><input type="checkbox" id="iOpen"${n.stayOpen ? ' checked' : ''}> Stays open after this step (check or test only)</label>`}
+        <label class="chk"><input type="checkbox" id="iDone"${n.status === 'done' ? ' checked' : ''}> Done</label>
+      </div>
+      ${area('Action', 'iAction', n.action)}
+      ${area('Verify before next step', 'iVerify', n.verify)}
+      <div class="f2">${field('By', 'iBy', n.by)}${field('Witness', 'iWit', n.witness)}</div>
+      ${area('Notes', 'iNotes', n.notes, 2)}
+      <div class="acts">${isProc ? '' : '<button class="btn sm" id="iChain">Add breaker below</button>'}<button class="btn sm danger" id="iDel">Delete</button></div>`;
+    const bind = (id, fn, ev = 'input') => { const x = $('#' + id); if (x) x.addEventListener(ev, e => fn(e.target)); };
+    let typing = false; const tcommit = () => { if (!typing) { commit(); typing = true; setTimeout(() => typing = false, 1500); } };
+    bind('iLabel', t => { tcommit(); n.label = t.value; changed({keepInsp: true}); });
+    bind('iSub', t => { tcommit(); n.sub = t.value; changed({keepInsp: true}); });
+    const pick = (id, key, norm) => bind(id, t => {
+      if (t.value === '__other') return onOther(t, v => { if (v !== null && v !== '') { commit(); n[key] = norm(v); } changed(); });
+      commit(); n[key] = t.value; changed({keepInsp: true});
+    }, 'change');
+    pick('iVolt', 'volt', NORM.volt); pick('iVolt2', 'volt2', NORM.volt); pick('iAmps', 'amps', NORM.amps); pick('iKva', 'kva', NORM.kva);
+    bind('iAction', t => { tcommit(); n.action = t.value; changed({keepInsp: true}); });
+    bind('iVerify', t => { tcommit(); n.verify = t.value; changed({keepInsp: true}); });
+    bind('iBy', t => { tcommit(); n.by = t.value; changed({keepInsp: true}); });
+    bind('iWit', t => { tcommit(); n.witness = t.value; changed({keepInsp: true}); });
+    bind('iNotes', t => { tcommit(); n.notes = t.value; changed({keepInsp: true}); });
+    bind('iType', t => { commit(); n.type = t.value; if (n.type === 'bus' && !n.w) n.w = 240; if (XF.has(n.type)) n.amps = ''; else { n.kva = ''; n.volt2 = ''; } n.state = STATEFUL.has(n.type) ? (n.state || 'open') : ''; changed(); }, 'change');
+    bind('iSide', t => { commit(); n.labelSide = t.value; changed({keepInsp: true}); }, 'change');
+    bind('iState', t => { commit(); n.state = t.value; changed({keepInsp: true}); }, 'change');
+    bind('iBadge', t => { commit(); n.badgePos = t.value; changed({keepInsp: true}); }, 'change');
+    bind('iW', t => { tcommit(); n.w = Math.max(40, snap(+t.value || 240)); changed({keepInsp: true}); });
+    bind('iHold', t => { commit(); n.hold = t.checked; changed({keepInsp: true}); }, 'change');
+    bind('iOpen', t => { commit(); n.stayOpen = t.checked; changed({keepInsp: true}); }, 'change');
+    bind('iDone', t => { commit(); n.status = t.checked ? 'done' : 'pending'; changed({keepInsp: true}); }, 'change');
+    bind('iStep', t => { const k = parseInt(t.value); if (isNaN(k)) return; commit(); setStepPos(n, k); changed(); }, 'change');
+    $('#iSeqBtn').onclick = () => { commit(); if (inSeq) { n.step = 0; renumber(); } else { n.step = seq().length + 1; } changed(); };
+    if ($('#iChain')) $('#iChain').onclick = () => addDevice('breaker');
+    $('#iDel').onclick = () => deleteSelection();
+    return;
+  }
+  el.innerHTML = `<div class="head"><h2>Project</h2><span class="type">title block</span></div>
+    <div class="f2">${field('Drawing no.', 'pDrawing', p.drawing)}${field('Revision', 'pRev', p.rev)}</div>
+    <div class="f2">${field('Date', 'pDate', p.date, 'date')}${field('Prepared by', 'pBy', p.by)}</div>
+    ${area('Notes (printed under the title block)', 'pNotes', p.notes, 2)}
+    <div class="seqbox"><div class="row1" style="margin-bottom:6px"><label style="flex:1;font-weight:600;color:var(--ink)">Background drawing</label>${p.bg ? '<button class="btn sm danger" id="bgDel">Remove</button>' : ''}</div>
+      ${p.bg ? `<div class="f2"><div class="f"><label for="bgOp">Opacity</label><input type="range" id="bgOp" min="0.05" max="1" step="0.05" value="${p.bg.opacity}"></div><div class="f"><label for="bgW">Width (grid units)</label><input type="number" id="bgW" min="100" step="8" value="${p.bg.w}"></div></div>
+        <label class="chk"><input type="checkbox" id="bgMove"${S.bgMove ? ' checked' : ''}> Drag the background instead of panning</label>
+        <label class="chk"><input type="checkbox" id="bgShowExp"${p.bg.print !== false ? ' checked' : ''}> Include in exports</label>`
+      : `<button class="btn sm" id="bgUpload">Upload a one-line (PDF or image)…</button><p class="help" style="margin:6px 0 0">Trace over the engineer's one-line. It fades behind your drawing and saves with the project.</p>`}
+    </div>
+    <div class="help"><p><b>How to build:</b> add a Source, select it, then add a Breaker, a Bus, feeders and so on; each new device drops in below the selected one, already connected. Drag to arrange. Use <b>Connect</b> for extra ties. Drag any line to reroute it; double-click a line to reset it.</p>
+    <p class="appver">Energization One-Line · web app v2026.10.17</p><p><b>Order:</b> set a step number on each switching device, or hit Auto-number. Add non-device steps (walkdown, soak, release loads) with <b>+ Step</b>. Use ▲▼ to reorder. <b>Walk sequence</b> lights up what is energized at each step.</p></div>`;
+    let typing = false; const tcommit = () => { if (!typing) { commit(); typing = true; setTimeout(() => typing = false, 1500); } };
+    const bind = (id, k) => $('#' + id).addEventListener('input', e => { tcommit(); p[k] = e.target.value; changed({keepInsp: true, skipCanvas: true}); });
+    bind('pDrawing', 'drawing'); bind('pRev', 'rev'); bind('pDate', 'date'); bind('pBy', 'by'); bind('pNotes', 'notes');
+    if ($('#bgUpload')) $('#bgUpload').onclick = () => openUpload();
+    if ($('#bgDel')) $('#bgDel').onclick = () => { commit(); delete p.bg; S.bgMove = false; changed(); };
+    if ($('#bgOp')) $('#bgOp').oninput = e => { tcommit(); p.bg.opacity = +e.target.value; changed({keepInsp: true}); };
+    if ($('#bgW')) $('#bgW').oninput = e => { tcommit(); p.bg.w = Math.max(100, +e.target.value || 800); changed({keepInsp: true}); };
+    if ($('#bgMove')) $('#bgMove').onchange = e => { S.bgMove = e.target.checked; };
+    if ($('#bgShowExp')) $('#bgShowExp').onchange = e => { commit(); p.bg.print = e.target.checked; changed({keepInsp: true}); };
+}
+/* ───────── upload a one-line: PDF, image, or project file ───────── */
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let pdfjsP = null;
+function loadPdfJs() {
+  if (window.pdfjsLib && window.pdfjsWorker) return Promise.resolve(window.pdfjsLib);
+  if (pdfjsP) return pdfjsP;
+  const add = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('load ' + src)); document.head.appendChild(el); });
+  // The worker script is loaded on the page too, so pdf.js runs it in the main thread (no cross-origin worker needed).
+  pdfjsP = add(PDFJS + 'pdf.min.js').then(() => add(PDFJS + 'pdf.worker.min.js')).then(() => { const L = window.pdfjsLib || window['pdfjs-dist/build/pdf']; L.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; return L; })
+    .catch(e => { pdfjsP = null; throw e; });
+  return pdfjsP;
+}
+async function renderPdfPage(pdf, num, width) {
+  const page = await pdf.getPage(num); const v1 = page.getViewport({scale: 1}); const vp = page.getViewport({scale: width / v1.width});
+  const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  await page.render({canvasContext: ctx, viewport: vp, background: '#fff'}).promise; return c;
+}
+const fileToImage = file => new Promise((res, rej) => { const url = URL.createObjectURL(file); const img = new Image(); img.onload = () => { URL.revokeObjectURL(url); res(img); }; img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('image')); }; img.src = url; });
+// Shrink a drawing to fit the project's storage: smaller in the shared store, larger in the offline file.
+function compressBg(src, w, h) {
+  const big = !store.usesDb(); const limit = big ? (kv.ok ? 1400000 : 700000) : 190000;
+  const tries = big ? [[3200, .84], [2600, .82], [2200, .78], [1800, .72], [1500, .66], [1200, .6], [900, .55]] : [[1800, .8], [1600, .72], [1400, .66], [1200, .6], [1000, .55], [800, .5]];
+  let data = null;
+  for (const [maxW, q] of tries) {
+    const sc = Math.min(1, maxW / w); const c = document.createElement('canvas'); c.width = Math.round(w * sc); c.height = Math.round(h * sc);
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(src, 0, 0, c.width, c.height);
+    data = c.toDataURL('image/jpeg', q); if (data.length < limit) break;
+  }
+  return {data, ar: h / w, reduced: data.length >= limit};
+}
+function setBackground(p, comp, name) {
+  const w = 1400; // a full sheet at this width puts drawn breakers close to the app's symbol size
+  p.bg = {data: comp.data, x: 0, y: 0, w, ar: comp.ar, opacity: .35, print: true, name: name || ''};
+}
+// Kept for anything that still calls it with an image file.
+async function loadBackground(file) { const img = await fileToImage(file); const comp = compressBg(img, img.naturalWidth, img.naturalHeight); commit(); setBackground(P(), comp, file.name); changed(); fitView(); }
+
+S.up = null;
+function openUpload(file) { S.up = null; $('#upBody').innerHTML = ''; $('#upFile').value = ''; if (!$('#dlgUpload').open) $('#dlgUpload').showModal(); if (file) handleUpload(file); }
+const baseName = n => String(n || 'One-line').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim() || 'One-line';
+async function handleUpload(file) {
+  const body = $('#upBody'); const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const head = `<div class="upfile"><span class="nm">${esc(file.name)}</span><span class="help">${(file.size / 1024 / 1024).toFixed(file.size > 1048576 ? 1 : 2)} MB</span></div>`;
+  const kind = ext === 'json' || file.type === 'application/json' ? 'json' : ext === 'pdf' || file.type === 'application/pdf' ? 'pdf' : /^image\//.test(file.type) || ['png', 'jpg', 'jpeg', 'webp', 'svg'].includes(ext) ? 'image' : ['dwg', 'dxf'].includes(ext) ? 'cad' : 'other';
+  if (kind === 'cad') { body.innerHTML = head + `<div class="upmsg">AutoCAD files can't be read in a browser. Ask for a PDF of the one-line, or open it in AutoCAD, Bluebeam or a free DWG viewer and plot or print the sheet to PDF, then upload that.</div>`; return; }
+  if (kind === 'other') { body.innerHTML = head + `<div class="upmsg">That file type isn't supported. Upload a PDF, a PNG or JPG image, or a project file (.json) exported from this app.</div>`; return; }
+  if (kind === 'json') {
+    let raw; try { raw = JSON.parse(await file.text()); } catch { body.innerHTML = head + `<div class="upmsg">This .json file couldn't be read. It may not be a project file from Energization One-Line.</div>`; return; }
+    if (raw && raw.kind === 'eol-backup' && Array.isArray(raw.projects)) {
+      body.innerHTML = head + `<p style="margin:0 0 10px">Backup with <b>${raw.projects.length}</b> project${raw.projects.length === 1 ? '' : 's'}${(raw.templates || []).length ? ` and ${raw.templates.length} template${raw.templates.length === 1 ? '' : 's'}` : ''}.</p><div class="acts" style="justify-content:flex-start"><button class="btn primary" id="upRestore">Add all to my projects</button></div>`;
+      $('#upRestore').onclick = async () => { $('#dlgUpload').close(); let k = 0; for (const r of raw.projects) { const p = normalize(r); if (S.list.some(x => x.id === p.id)) p.id = uid('p'); await store.put(p); S.list.unshift({id: p.id, name: p.name, updatedAt: p.updatedAt}); k++; } for (const t of (raw.templates || [])) { if (!S.templates.some(x => x.id === t.id)) { try { await store.putTemplate(t); S.templates.unshift(t); } catch {} } } renderTemplates(); renderProjectSelect(); toast(`Added ${k} project${k === 1 ? '' : 's'}`); };
+      return;
+    }
+    if (!raw || !Array.isArray(raw.nodes)) { body.innerHTML = head + `<div class="upmsg">This .json file isn't an Energization One-Line project.</div>`; return; }
+    const p = normalize(raw); const devs = p.nodes.filter(n => !TYPES[n.type].proc).length;
+    body.innerHTML = head + `<p style="margin:0 0 10px"><b>${esc(p.name)}</b> · ${devs} device${devs === 1 ? '' : 's'} · ${seq(p).length} step${seq(p).length === 1 ? '' : 's'}${p.drawing ? ' · drawing ' + esc(p.drawing) : ''}${p.rev ? ' rev ' + esc(p.rev) : ''}${p.by ? ' · by ' + esc(p.by) : ''}</p><div class="acts" style="justify-content:flex-start"><button class="btn primary" id="upOpenProj">Open as a new project</button></div>`;
+    $('#upOpenProj').onclick = () => { if (S.list.some(x => x.id === p.id) || P().id === p.id) p.id = uid('p'); $('#dlgUpload').close(); newProject(p); toast('Opened ' + p.name); };
+    return;
+  }
+  // PDF or image → background
+  let getCanvas;
+  if (kind === 'image') {
+    body.innerHTML = head + '<p class="help">Reading image…</p>';
+    let img; try { img = await fileToImage(file); } catch { body.innerHTML = head + `<div class="upmsg">This image couldn't be read. Try saving it again as PNG or JPG.</div>`; return; }
+    body.innerHTML = head + `<div class="uppreview" id="upPrev"></div>`;
+    { const iw = img.naturalWidth || 1600, ih = img.naturalHeight || 1000, sc = Math.min(1, 1240 / iw); const pv = document.createElement('canvas'); pv.width = Math.round(iw * sc); pv.height = Math.round(ih * sc); const pc = pv.getContext('2d'); pc.fillStyle = '#fff'; pc.fillRect(0, 0, pv.width, pv.height); pc.drawImage(img, 0, 0, pv.width, pv.height); pv.setAttribute('aria-label', 'Preview of ' + file.name); $('#upPrev').appendChild(pv); }
+    getCanvas = async () => img;
+    S.up = {file, kind, w: img.naturalWidth || 1600, h: img.naturalHeight || 1000};
+  } else {
+    body.innerHTML = head + '<p class="help">Reading PDF…</p>';
+    let L; try { L = await loadPdfJs(); } catch { body.innerHTML = head + `<div class="upmsg">Reading PDFs needs an internet connection (the PDF reader loads on first use), and it couldn't be loaded here. Connect and try again, or save the page as a PNG or JPG (in most PDF viewers: Export or Save as image) and upload that.</div>`; return; }
+    let pdf; try { pdf = await L.getDocument({data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false, useSystemFonts: true}).promise; }
+    catch (e) { body.innerHTML = head + `<div class="upmsg">${/password/i.test(String(e && e.name || e)) ? 'This PDF is password-protected. Ask for an unlocked copy.' : "This PDF couldn't be opened. It may be damaged; try printing it to a new PDF first."}</div>`; return; }
+    const n = pdf.numPages; S.up = {file, kind, pdf, page: 1};
+    body.innerHTML = head + (n > 1 ? `<p style="margin:0 0 6px">${n} pages. Pick the one-line sheet:</p><div class="pages" id="upPages"></div>` : `<div class="uppreview" id="upPrev"></div>`);
+    if (n > 1) {
+      const grid = $('#upPages'); const shown = Math.min(n, 40);
+      for (let i = 1; i <= shown; i++) { const b = document.createElement('button'); b.type = 'button'; b.dataset.pg = i; b.className = i === 1 ? 'on' : ''; b.innerHTML = `<span>Page ${i}</span>`; grid.appendChild(b); }
+      if (n > shown) grid.insertAdjacentHTML('beforeend', `<p class="help" style="grid-column:1/-1">Showing the first ${shown} pages.</p>`);
+      grid.onclick = e => { const b = e.target.closest('[data-pg]'); if (!b) return; grid.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); S.up.page = +b.dataset.pg; };
+      (async () => { for (let i = 1; i <= shown; i++) { if (!S.up || S.up.pdf !== pdf) return; try { const c = await renderPdfPage(pdf, i, 150); const b = grid.querySelector(`[data-pg="${i}"]`); if (b) b.prepend(c); } catch {} } })();
+    } else { renderPdfPage(pdf, 1, 620).then(c => { const pv = $('#upPrev'); if (pv) pv.appendChild(c); }).catch(() => {}); }
+    getCanvas = async () => renderPdfPage(pdf, S.up.page, store.usesDb() ? 2000 : 2800);
+  }
+  body.insertAdjacentHTML('beforeend', `<div class="acts" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn primary" id="upNew">Start a new project traced over it</button><button class="btn" id="upBehind">Put it behind the current drawing</button></div><p class="help" id="upStatus" style="margin:6px 0 0"></p>`);
+  const go = async asNew => {
+    $('#upNew').disabled = $('#upBehind').disabled = true; $('#upStatus').textContent = 'Preparing the drawing…';
+    try {
+      const src = await getCanvas(); const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height;
+      const comp = compressBg(src, w, h); const label = baseName(file.name) + (S.up.kind === 'pdf' && S.up.pdf.numPages > 1 ? ` (page ${S.up.page})` : '');
+      $('#dlgUpload').close();
+      if (asNew) { const p = blankProject(label); setBackground(p, comp, label); S.bgMove = false; await newProject(p); fitView(); }
+      else { commit(); setBackground(P(), comp, label); S.bgMove = false; changed(); fitView(); }
+      toast(comp.reduced ? 'One-line added. It was large, so it was reduced to fit.' : 'One-line added. Place devices over it; adjust it in the Project panel.');
+    } catch (e) { $('#upStatus').textContent = "Couldn't prepare that page. Try another page or a PNG/JPG export."; $('#upNew').disabled = $('#upBehind').disabled = false; }
+  };
+  $('#upNew').onclick = () => go(true); $('#upBehind').onclick = () => go(false);
+}
+function setStepPos(n, k) {
+  const list = seq().filter(x => x !== n);
+  if (k <= 0) { n.step = 0; list.forEach((x,i) => x.step = i + 1); return; }
+  k = clamp(k, 1, list.length + 1); list.splice(k - 1, 0, n); list.forEach((x,i) => x.step = i + 1);
+}
+
+/* ───────── walk bar ───────── */
+function renderWalk() {
+  const bar = $('#walkbar'); bar.hidden = !S.walk.on; if (!S.walk.on) return;
+  const list = seq(), n = list.length; S.walk.cur = clamp(S.walk.cur, 0, n);
+  $('#wk').textContent = S.walk.cur; $('#wn').textContent = `of ${n}`;
+  const r = $('#wRange'); r.max = n; r.value = S.walk.cur;
+  const cur = list.find(x => x.step === S.walk.cur);
+  if (!cur) { $('#wname').textContent = n ? 'Before step 1 — nothing energized' : 'No steps in the sequence'; $('#wact').textContent = ''; $('#wver').textContent = ''; }
+  else {
+    $('#wname').innerHTML = esc(cur.label) + (cur.hold ? '<span class="hp">Hold point</span>' : '') + (cur.status === 'done' ? ' <span class="chip" style="color:var(--ok)">✓ done</span>' : '');
+    $('#wact').textContent = cur.action || '';
+    $('#wver').innerHTML = (cur.verify ? `<b>Verify:</b> ${esc(cur.verify)} ` : '') + (cur.by || cur.witness ? `<b>By:</b> ${esc(cur.by || '—')}${cur.witness ? ` · <b>Witness:</b> ${esc(cur.witness)}` : ''}` : '');
+  }
+  const hz = groundHazards(S.walk.cur, liveMap(S.walk.cur));
+  if (hz.length) $('#wver').innerHTML = `<span style="color:var(--live);font-weight:600">⚠ Temporary ground still on: ${hz.map(g => { const at = P().links.filter(l => l.to === g.id).map(l => node(l.from).label).join(', '); return esc(g.label) + (at ? ' at ' + esc(at) : '') + (g.step ? ` (removed at step ${g.step})` : ' (no removal step)'); }).join('; ')}</span><br>` + $('#wver').innerHTML;
+  $('#wPrev').disabled = S.walk.cur <= 0; $('#wNext').disabled = S.walk.cur >= n; $('#wDone').disabled = !cur;
+}
+
+/* ───────── project select & all ───────── */
+function renderProjectSelect() {
+  const sel = $('#projSel'); const p = P();
+  const items = S.list.slice(); if (!items.some(x => x.id === p.id)) items.unshift({id: p.id, name: p.name + ' (not saved yet)'});
+  sel.innerHTML = items.map(x => `<option value="${esc(x.id)}"${x.id === p.id ? ' selected' : ''}>${esc(x.name || 'Untitled')}</option>`).join('');
+  if (document.activeElement !== $('#projName')) $('#projName').value = p.name;
+}
+function renderAll(o = {}) {
+  if (!o.skipCanvas) renderCanvas();
+  { const pill = $('#detPill'); if (pill) pill.hidden = !(S.sel && !S.walk.on); }
+  renderSeq(); if (!o.keepInsp) renderInsp(); renderWalk(); renderProjectSelect();
+  $('#tUndo').disabled = !S.hist.length; $('#tRedo').disabled = !S.future.length;
+  $('#tWalk').classList.toggle('on', S.walk.on); $('#tConnect').classList.toggle('on', S.mode === 'connect'); $('#tSelect').classList.toggle('on', S.mode === 'select'); $('#tBox').classList.toggle('on', S.mode === 'box');
+  $('#hint').textContent = S.mode === 'connect' ? (S.connectFrom ? 'Now click the device it feeds. Esc cancels.' : 'Click the upstream device first.') : S.mode === 'box' ? 'Drag a box around devices. Shift-drag adds to the selection.' : S.walk.on ? (P().colors && P().colors.on ? 'Walk mode: colored and bold = energized, faded = dead.' : 'Walk mode: red = energized. Editing still works.') : S.sel && S.sel.kind === 'nodes' ? `${S.sel.ids.length} selected · Ctrl+C copies, Delete removes, arrows nudge` : '';
+}
+
+/* ───────── editing actions ───────── */
+function addDevice(type) {
+  commit();
+  const p = P(); let x = 200, y = 80, parent = null;
+  if (S.sel && S.sel.kind === 'node') parent = node(S.sel.id);
+  if (parent && !TYPES[parent.type].proc) {
+    const g = geom(parent);
+    const gap = type === 'bus' ? 56 : TYPES[type].h / 2 + g.h / 2 + 40;
+    x = parent.x; y = parent.y + gap;
+    if (parent.type === 'bus') { // put children spread along the bus
+      const kids = p.links.filter(l => l.from === parent.id).map(l => node(l.to)).filter(Boolean);
+      x = kids.length ? Math.max(...kids.map(k => k.x)) + 120 : parent.x - g.w / 2 + 60;
+      x = clamp(x, parent.x - g.w / 2 + 20, parent.x + g.w / 2 - 20); y = parent.y + 56 + TYPES[type].h / 2;
+    }
+    while (p.nodes.some(n => !TYPES[n.type].proc && Math.abs(n.x - x) < 16 && Math.abs(n.y - y) < 16)) x += 80;
+  } else if (p.nodes.some(n => !TYPES[n.type].proc)) {
+    const ds = p.nodes.filter(n => !TYPES[n.type].proc); x = Math.max(...ds.map(n => n.x)) + 160; y = Math.min(...ds.map(n => n.y));
+  } else { const r = svg.getBoundingClientRect(); x = (r.width / 2 - S.view.x) / S.view.k; y = (80 - S.view.y) / S.view.k; }
+  const n = mkNode(type, x, y, {});
+  if (type === 'proc') { n.label = 'New step'; }
+  if (type === 'ground') { n.label = 'Temp ground'; n.labelSide = 'b'; n.action = 'Remove temporary ground; log removal.'; n.verify = 'Ground off and accounted for on the grounds log'; if (parent && !TYPES[parent.type].proc) { n.x = snap(parent.type === 'bus' ? x : parent.x - 48); n.y = snap(parent.type === 'bus' ? parent.y + 40 : parent.y + 44); } }
+  p.nodes.push(n);
+  if (type === 'ground') { const gs = seq().filter(g => TYPES[g.type].gnd); const first = seq()[0]; setStepPos(n, gs.length ? Math.max(...gs.map(g => g.step)) + 1 : (first && TYPES[first.type].proc ? 2 : 1)); }
+  if (parent && !TYPES[parent.type].proc && !TYPES[type].proc && parent.type !== 'load' && parent.type !== 'motor') p.links.push({id: uid('l'), from: parent.id, to: n.id});
+  if (TYPES[type].sw && type !== 'source' && type !== 'generator' && parent && parent.step > 0 && !TYPES[parent.type].proc) {
+    // chain numbering: new switching device right after its parent when the parent is in the sequence
+    setStepPos(n, parent.step + 1);
+  }
+  S.sel = {kind: 'node', id: n.id}; S.scrollSeq = true;
+  changed();
+  const lbl = $('#iLabel'); if (lbl && window.matchMedia('(min-width: 961px)').matches) { lbl.focus(); lbl.select(); }
+}
+function addProc() {
+  commit();
+  const n = mkNode('proc', 0, 0, {label: 'New step'}); P().nodes.push(n);
+  const after = S.sel && S.sel.kind === 'node' ? node(S.sel.id) : null;
+  setStepPos(n, after && after.step > 0 ? after.step + 1 : seq().length + 1);
+  S.sel = {kind: 'node', id: n.id}; S.scrollSeq = true; changed();
+  const lbl = $('#iLabel'); if (lbl) { lbl.focus(); lbl.select(); }
+}
+function deleteSelection() {
+  if (!S.sel) return; commit(); const p = P();
+  if (S.sel.kind === 'link') p.links = p.links.filter(l => l.id !== S.sel.id);
+  else { const ids = new Set(selIds()); p.nodes = p.nodes.filter(n => !ids.has(n.id)); p.links = p.links.filter(l => !ids.has(l.from) && !ids.has(l.to)); renumber(); }
+  S.sel = null; changed();
+}
+function copySel() {
+  const ids = new Set(selIds()); const nodes = P().nodes.filter(n => ids.has(n.id) && !TYPES[n.type].proc);
+  if (!nodes.length) return;
+  S.clip = {nodes: JSON.parse(JSON.stringify(nodes)), links: P().links.filter(l => ids.has(l.from) && ids.has(l.to)).map(l => Object.assign({from: l.from, to: l.to}, l.bends ? {bends: l.bends.slice()} : {}))};
+  toast(`Copied ${nodes.length} device${nodes.length === 1 ? '' : 's'}`);
+}
+function pasteClip() {
+  if (!S.clip) return; commit(); const map = {}; const p = P();
+  const ns = S.clip.nodes.map(n => { const m = Object.assign({}, n, {id: uid(), x: n.x + 40, y: n.y + 40, step: 0, status: 'pending'}); map[n.id] = m.id; return m; });
+  const nl = S.clip.links.map(l => Object.assign({id: uid('l'), from: map[l.from], to: map[l.to]}, l.bends ? {bends: l.bends.map(c => c + 40)} : {}));
+  p.nodes.push(...ns); p.links.push(...nl);
+  S.clip = {nodes: ns.map(n => JSON.parse(JSON.stringify(n))), links: nl.map(l => Object.assign({from: l.from, to: l.to}, l.bends ? {bends: l.bends.slice()} : {}))};
+  setSel(ns.map(n => n.id)); changed();
+}
+function alignSel(how) {
+  const ns = selIds().map(node).filter(n => n && !TYPES[n.type].proc); if (ns.length < 2) return; commit();
+  const bs = ns.map(n => ({n, b: bbox(n)}));
+  if (how === 'left') { const x = Math.min(...bs.map(o => o.b.x)); bs.forEach(o => o.n.x = snap(x + o.b.w / 2)); }
+  if (how === 'right') { const x = Math.max(...bs.map(o => o.b.x + o.b.w)); bs.forEach(o => o.n.x = snap(x - o.b.w / 2)); }
+  if (how === 'center') { const x = ns.reduce((a, n) => a + n.x, 0) / ns.length; ns.forEach(n => n.x = snap(x)); }
+  if (how === 'top') { const y = Math.min(...bs.map(o => o.b.y)); bs.forEach(o => o.n.y = snap(y + o.b.h / 2)); }
+  if (how === 'bottom') { const y = Math.max(...bs.map(o => o.b.y + o.b.h)); bs.forEach(o => o.n.y = snap(y - o.b.h / 2)); }
+  if (how === 'middle') { const y = ns.reduce((a, n) => a + n.y, 0) / ns.length; ns.forEach(n => n.y = snap(y)); }
+  if (how === 'disth' && ns.length > 2) { const srt = ns.slice().sort((a, b) => a.x - b.x); const step = (srt[srt.length - 1].x - srt[0].x) / (srt.length - 1); srt.forEach((n, i) => n.x = snap(srt[0].x + i * step)); }
+  if (how === 'distv' && ns.length > 2) { const srt = ns.slice().sort((a, b) => a.y - b.y); const step = (srt[srt.length - 1].y - srt[0].y) / (srt.length - 1); srt.forEach((n, i) => n.y = snap(srt[0].y + i * step)); }
+  changed({keepInsp: true});
+}
+function autoNumber() {
+  commit(); const p = P();
+  const old = seq();
+  const procs = old.filter(n => TYPES[n.type].proc).map(n => ({n, before: old.slice(0, old.indexOf(n)).filter(x => !TYPES[x.type].proc).length}));
+  const devs = p.nodes.filter(n => TYPES[n.type].sw).sort((a,b) => a.y - b.y || a.x - b.x);
+  p.nodes.forEach(n => n.step = 0);
+  const out = devs.slice(); procs.forEach((pr, k) => out.splice(Math.min(pr.before, devs.length) + k, 0, pr.n));
+  out.forEach((n, i) => n.step = i + 1);
+  changed(); toast(`Numbered ${devs.length} switching devices top to bottom${procs.length ? '; procedure steps kept in place' : ''}`);
+}
+function moveStep(n, dir) {
+  const list = seq(); const i = list.indexOf(n); const j = i + dir; if (j < 0 || j >= list.length) return;
+  commit(); [list[i].step, list[j].step] = [list[j].step, list[i].step]; changed();
+}
+function connectClick(id) {
+  if (!S.connectFrom) { S.connectFrom = id; renderAll(); return; }
+  if (S.connectFrom !== id) {
+    const p = P(); const dup = p.links.find(l => (l.from === S.connectFrom && l.to === id) || (l.from === id && l.to === S.connectFrom));
+    if (dup) toast('Those two are already connected'); else { commit(); p.links.push({id: uid('l'), from: S.connectFrom, to: id}); }
+  }
+  S.connectFrom = null; S.sel = {kind: 'node', id}; changed();
+}
+function setMode(m) { S.mode = m; S.connectFrom = null; renderAll(); }
+function fitView() {
+  const ds = P().nodes.filter(n => !TYPES[n.type].proc); const r = svg.getBoundingClientRect(); const bg = P().bg && P().bg.data ? P().bg : null;
+  if (!ds.length && !bg) { S.view = {x: 40, y: 30, k: 1}; renderCanvas(); return; }
+  const bs = ds.map(bbox).concat(bg ? [{x: bg.x + 60, y: bg.y + 30, w: bg.w - 220, h: bg.w * bg.ar - 70}] : []); const minx = Math.min(...bs.map(b => b.x)) - 60, miny = Math.min(...bs.map(b => b.y)) - 30, maxx = Math.max(...bs.map(b => b.x + b.w)) + 160, maxy = Math.max(...bs.map(b => b.y + b.h)) + 40;
+  const k = clamp(Math.min(r.width / (maxx - minx), (r.height - (S.walk.on ? 140 : 0)) / (maxy - miny)), .25, 1.6);
+  S.view = {x: (r.width - (maxx - minx) * k) / 2 - minx * k, y: 20 - miny * k, k}; renderCanvas();
+}
+function zoomBy(f, cx, cy) {
+  const r = svg.getBoundingClientRect(); cx = cx ?? r.width / 2; cy = cy ?? r.height / 2;
+  const k2 = clamp(S.view.k * f, .2, 3); const v = S.view;
+  v.x = cx - (cx - v.x) * (k2 / v.k); v.y = cy - (cy - v.y) * (k2 / v.k); v.k = k2; renderCanvas();
+}
+
+/* ───────── pointer interaction ───────── */
+let drag = null;
+const ptrs = new Map(); let pinch = null, lpTimer = null;
+const clearLP = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
+svg.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  if (e.pointerType !== 'mouse') {
+    ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    if (ptrs.size >= 2) { // second finger: zoom and pan the drawing
+      clearLP(); try { svg.setPointerCapture(e.pointerId); } catch {}
+      if (drag && drag.committed) changed({keepInsp: true});
+      const [a, b] = [...ptrs.values()]; const rc = svg.getBoundingClientRect();
+      pinch = {d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, k0: S.view.k, mx: (a.x + b.x) / 2 - rc.left, my: (a.y + b.y) / 2 - rc.top, vx: S.view.x, vy: S.view.y};
+      drag = null; S.marquee = null; svg.classList.remove('pan'); return;
+    }
+  }
+  const hEl = e.target.closest('[data-handle]'), nEl = e.target.closest('[data-node]'), lEl = e.target.closest('[data-link]');
+  const r = svg.getBoundingClientRect(); const wx = (e.clientX - r.left - S.view.x) / S.view.k, wy = (e.clientY - r.top - S.view.y) / S.view.k;
+  try { svg.setPointerCapture(e.pointerId); } catch {}
+  if (hEl) { const n = node(nEl.dataset.node); drag = {kind: 'busw', n, start: n.w, wx, committed: false}; return; }
+  if (nEl) {
+    const id = nEl.dataset.node;
+    if (S.mode === 'connect') { connectClick(id); drag = {kind: 'none'}; return; }
+    if (e.shiftKey) { const cur = selIds(); setSel(cur.includes(id) ? cur.filter(x => x !== id) : cur.concat(id)); renderAll(); drag = {kind: 'none'}; return; }
+    if (e.pointerType === 'touch') { clearLP(); const was = selIds(); lpTimer = setTimeout(() => { lpTimer = null; if (drag && drag.kind === 'node' && !drag.moved) { const base = was.includes(id) ? was : was.concat(id); setSel(base.includes(id) && was.includes(id) ? base.filter(x => x !== id) : base); drag = {kind: 'none'}; try { navigator.vibrate && navigator.vibrate(15); } catch {} renderAll(); toast(selIds().length > 1 ? `${selIds().length} selected. Long-press more to add.` : 'Selected'); } }, 520); }
+    if (!isSel(id)) { S.sel = {kind: 'node', id}; S.scrollSeq = true; renderAll(); }
+    let ids = new Set(selIds().length ? selIds() : [id]);
+    if (e.altKey) ids = new Set([...ids].flatMap(i => [...descendants(i)]));
+    const starts = {}; ids.forEach(i => { const n = node(i); if (n) starts[i] = {x: n.x, y: n.y}; });
+    drag = {kind: 'node', ids, starts, bstarts: bendStarts(ids), wx, wy, moved: false, committed: false};
+    return;
+  }
+  if (lEl) {
+    const l = P().links.find(x => x.id === lEl.dataset.link); if (!(S.sel && S.sel.kind === 'link' && S.sel.id === l.id)) { S.sel = {kind: 'link', id: l.id}; renderAll(); }
+    const r = routeRaw(l); const sIdx = r ? nearestSeg(r, wx, wy) : -1;
+    drag = sIdx < 0 ? {kind: 'none'} : {kind: 'seg', l, r, F: explicitBends(r), s: sIdx, ax: segAxis(r.a1, sIdx), wx, wy, start: l.bends ? l.bends.slice() : null, committed: false};
+    return;
+  }
+  if (S.bgMove && P().bg) { drag = {kind: 'bg', wx, wy, bx: P().bg.x, by: P().bg.y, committed: false}; return; }
+  if (S.mode === 'box' || e.shiftKey) { drag = {kind: 'marquee', add: e.shiftKey ? selIds() : [], x0: wx, y0: wy}; S.marquee = {x0: wx, y0: wy, x1: wx, y1: wy}; return; }
+  drag = {kind: 'pan', sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y, moved: false}; svg.classList.add('pan');
+});
+svg.addEventListener('pointermove', e => {
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, {x: e.clientX, y: e.clientY});
+  if (pinch && ptrs.size >= 2) {
+    const [a, b] = [...ptrs.values()]; const rc = svg.getBoundingClientRect();
+    const k = clamp(pinch.k0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0, .2, 3), mx = (a.x + b.x) / 2 - rc.left, my = (a.y + b.y) / 2 - rc.top;
+    const wx0 = (pinch.mx - pinch.vx) / pinch.k0, wy0 = (pinch.my - pinch.vy) / pinch.k0;
+    S.view = {x: mx - wx0 * k, y: my - wy0 * k, k}; renderCanvas(); return;
+  }
+  if (lpTimer && drag && drag.wx !== undefined) { const rc = svg.getBoundingClientRect(); const wx = (e.clientX - rc.left - S.view.x) / S.view.k, wy = (e.clientY - rc.top - S.view.y) / S.view.k; if (Math.hypot(wx - drag.wx, wy - drag.wy) * S.view.k > 8) clearLP(); }
+  if (!drag) {
+    const lEl = e.target.closest && e.target.closest('[data-link]');
+    if (lEl && !e.target.classList.contains('seghandle')) { const l = P().links.find(x => x.id === lEl.dataset.link); const r = l && routeRaw(l); if (r) { const rc = svg.getBoundingClientRect(); const k = nearestSeg(r, (e.clientX - rc.left - S.view.x) / S.view.k, (e.clientY - rc.top - S.view.y) / S.view.k); svg.style.cursor = k < 0 ? '' : segAxis(r.a1, k) === 'v' ? 'ew-resize' : 'ns-resize'; } }
+    else if (svg.style.cursor) svg.style.cursor = '';
+    return;
+  }
+  const r = svg.getBoundingClientRect(); const wx = (e.clientX - r.left - S.view.x) / S.view.k, wy = (e.clientY - r.top - S.view.y) / S.view.k;
+  if (drag.kind === 'pan') { if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 3) drag.moved = true; S.view.x = drag.vx + e.clientX - drag.sx; S.view.y = drag.vy + e.clientY - drag.sy; renderCanvas(); }
+  else if (drag.kind === 'node') {
+    const dx = snap(wx - drag.wx), dy = snap(wy - drag.wy); if (!dx && !dy && !drag.moved) return;
+    if (!drag.moved && e.pointerType === 'touch' && Math.hypot(wx - drag.wx, wy - drag.wy) * S.view.k < 8) return;
+    if (!drag.committed) { commit(); drag.committed = true; } drag.moved = true;
+    drag.ids.forEach(i => { const n = node(i); if (n) { n.x = drag.starts[i].x + dx; n.y = drag.starts[i].y + dy; } }); shiftBends(drag.ids, drag.bstarts, dx, dy); renderCanvas();
+  }
+  else if (drag.kind === 'busw') { if (!drag.committed) { commit(); drag.committed = true; } drag.n.w = Math.max(40, snap(drag.start + 2 * (wx - drag.wx))); renderCanvas(); }
+  else if (drag.kind === 'marquee') { S.marquee.x1 = wx; S.marquee.y1 = wy; renderCanvas(); }
+  else if (drag.kind === 'seg') {
+    if (!drag.committed && Math.hypot(wx - drag.wx, wy - drag.wy) * S.view.k < 3) return;
+    if (!drag.committed) { commit(); drag.committed = true; }
+    const pos = snap(drag.ax === 'v' ? wx : wy); drag.l.bends = dragBends(drag.r, drag.F, drag.s, pos); renderCanvas();
+  }
+  else if (drag.kind === 'bg') { if (!drag.committed) { commit(); drag.committed = true; } P().bg.x = snap(drag.bx + wx - drag.wx); P().bg.y = snap(drag.by + wy - drag.wy); renderCanvas(); }
+});
+const endDrag = e => {
+  ptrs.delete(e.pointerId); clearLP();
+  if (pinch) { if (ptrs.size < 2) { pinch = null; drag = null; } return; }
+  if (!drag) return; svg.classList.remove('pan');
+  if (drag.kind === 'pan' && !drag.moved) { if (S.connectFrom) { S.connectFrom = null; } S.sel = null; renderAll(); }
+  else if ((drag.kind === 'node' && drag.moved) || drag.kind === 'busw' || (drag.kind === 'bg' && drag.committed) || (drag.kind === 'seg' && drag.committed)) changed({keepInsp: drag.kind !== 'busw' && drag.kind !== 'seg'});
+  else if (drag.kind === 'marquee') {
+    const m = S.marquee; S.marquee = null; const x1 = Math.min(m.x0, m.x1), x2 = Math.max(m.x0, m.x1), y1 = Math.min(m.y0, m.y1), y2 = Math.max(m.y0, m.y1);
+    const inside = P().nodes.filter(n => !TYPES[n.type].proc && n.x >= x1 && n.x <= x2 && n.y >= y1 && n.y <= y2).map(n => n.id);
+    if (x2 - x1 < 4 && y2 - y1 < 4) { if (!drag.add.length) S.sel = null; } else setSel(drag.add.concat(inside));
+    renderAll();
+  }
+  drag = null;
+};
+svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
+svg.addEventListener('wheel', e => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - r.left, e.clientY - r.top); }, {passive: false});
+svg.addEventListener('dblclick', e => { const hitEl = document.elementFromPoint(e.clientX, e.clientY) || e.target; const lEl = hitEl.closest('[data-link]'); if (lEl) { const l = P().links.find(x => x.id === lEl.dataset.link); if (l && l.bends) { commit(); delete l.bends; changed(); toast('Line rerouted automatically'); } return; } const nEl = hitEl.closest('[data-node]'); if (nEl) { const l = $('#iLabel'); if (l) { l.focus(); l.select(); } } });
+
+/* ───────── keyboard ───────── */
+document.addEventListener('keydown', e => {
+  const t = e.target; const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+  if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  if (typing) return;
+  if (e.key === 'Escape') { if (S.connectFrom) { S.connectFrom = null; renderAll(); } else if (S.mode === 'connect') setMode('select'); else if (S.walk.on) { S.walk.on = false; renderAll(); } else { S.sel = null; renderAll(); } return; }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel) { e.preventDefault(); deleteSelection(); return; }
+  if (mod && e.key.toLowerCase() === 'c' && selIds().length) { e.preventDefault(); copySel(); return; }
+  if (mod && e.key.toLowerCase() === 'v' && S.clip) { e.preventDefault(); pasteClip(); return; }
+  if (mod && e.key.toLowerCase() === 'd' && selIds().length) { e.preventDefault(); copySel(); pasteClip(); return; }
+  if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); setSel(P().nodes.filter(n => !TYPES[n.type].proc).map(n => n.id)); renderAll(); return; }
+  if (e.key === 'v' || e.key === 'V') setMode('select');
+  if (e.key === 'b' || e.key === 'B') setMode(S.mode === 'box' ? 'select' : 'box');
+  if (e.key === 'c' || e.key === 'C') setMode(S.mode === 'connect' ? 'select' : 'connect');
+  if (e.key === 'w' || e.key === 'W') { S.walk.on = !S.walk.on; renderAll(); }
+  if (S.walk.on && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !selIds().length) { S.walk.cur += e.key === 'ArrowRight' ? 1 : -1; renderAll(); return; }
+  if (selIds().length && e.key.startsWith('Arrow')) {
+    e.preventDefault(); const ns = selIds().map(node).filter(n => n && !TYPES[n.type].proc); if (!ns.length) return; const d = e.shiftKey ? GRID * 4 : GRID; commit();
+    const ddx = e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0, ddy = e.key === 'ArrowUp' ? -d : e.key === 'ArrowDown' ? d : 0, idset = new Set(ns.map(n => n.id)), bs = bendStarts(idset);
+    ns.forEach(n => { n.x += ddx; n.y += ddy; }); shiftBends(idset, bs, ddx, ddy); changed({keepInsp: true});
+  }
+});
+
+/* ───────── toolbar & panels wiring ───────── */
+$('#tSelect').onclick = () => setMode('select');
+$('#tConnect').onclick = () => setMode(S.mode === 'connect' ? 'select' : 'connect');
+$('#tBox').onclick = () => setMode(S.mode === 'box' ? 'select' : 'box');
+$('#tAuto').onclick = autoNumber;
+$('#tSched').onclick = openSchedule;
+$('#uploadBtn').onclick = () => openUpload();
+const setTab = t => { $('#side').dataset.tab = t; document.querySelectorAll('[data-stab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.stab === t))); };
+document.querySelectorAll('[data-stab]').forEach(b => b.onclick = () => setTab(b.dataset.stab));
+$('#detPill').onclick = () => { setTab('insp'); $('#side').scrollIntoView({behavior: 'smooth', block: 'start'}); };
+$('#upClose').onclick = () => { S.up = null; $('#dlgUpload').close(); };
+$('#upDrop').onclick = () => $('#upFile').click();
+$('#upDrop').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#upFile').click(); } };
+$('#upFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (f) handleUpload(f); };
+['dragenter', 'dragover'].forEach(ev => $('#upDrop').addEventListener(ev, e => { e.preventDefault(); $('#upDrop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => $('#upDrop').addEventListener(ev, e => { e.preventDefault(); $('#upDrop').classList.remove('over'); }));
+$('#upDrop').addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) handleUpload(f); });
+{ const cw = document.querySelector('.cwrap'); let depth = 0;
+  const hasFiles = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  cw.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); depth++; cw.classList.add('dropping'); });
+  cw.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+  cw.addEventListener('dragleave', () => { depth = Math.max(0, depth - 1); if (!depth) cw.classList.remove('dropping'); });
+  cw.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); depth = 0; cw.classList.remove('dropping'); const f = e.dataTransfer.files[0]; if (f) openUpload(f); }); }
+$('#tColors').onclick = () => { renderColors(); $('#dlgColors').showModal(); };
+$('#vcClose').onclick = () => $('#dlgColors').close();
+function renderColors() {
+  const p = P(); const c = p.colors; $('#vcOn').checked = !!c.on;
+  const counts = {}; sysVolts(p).forEach((sv, id) => { const n = node(id); if (!n) return; [sv.v, XF.has(n.type) ? sv.out : null].filter(Boolean).forEach(v => counts[v] = (counts[v] || 0) + 1); });
+  const all = [...new Set([...Object.keys(VC_DEFAULT), ...Object.keys(c.map), ...Object.keys(counts)])];
+  const order = Object.keys(VC_DEFAULT); all.sort((a, b) => ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99) || a.localeCompare(b));
+  $('#vcList').innerHTML = all.map(v => { const col = c.map[v] || spareColor(v); return `<div class="vcrow"><input type="color" value="${col}" data-v="${esc(v)}" aria-label="Color for ${esc(v)}"><div><div class="vn">${esc(v)}</div><div class="use">${counts[v] ? counts[v] + ' device' + (counts[v] === 1 ? '' : 's') + ' on this drawing' : 'not used yet'}</div></div><span class="swl" style="background:${col}"></span>${!VC_DEFAULT[v] && !counts[v] ? `<button class="btn sm" data-vdel="${esc(v)}" aria-label="Remove ${esc(v)}">×</button>` : '<span></span>'}</div>`; }).join('');
+}
+$('#vcOn').onchange = e => { commit(); P().colors.on = e.target.checked; changed({keepInsp: true}); };
+{ let typing = false;
+  $('#vcList').addEventListener('input', e => { const t = e.target; if (!t.dataset.v) return; if (!typing) { commit(); typing = true; setTimeout(() => typing = false, 1500); } P().colors.map[t.dataset.v] = t.value; t.parentElement.querySelector('.swl').style.background = t.value; changed({keepInsp: true}); }); }
+$('#vcList').addEventListener('click', e => { const b = e.target.closest('[data-vdel]'); if (!b) return; commit(); delete P().colors.map[b.dataset.vdel]; changed({keepInsp: true}); renderColors(); });
+$('#vcAdd').onclick = () => { const v = NORM.volt($('#vcNewV').value.trim()); if (!v) return; commit(); P().colors.map[v] = $('#vcNewC').value; $('#vcNewV').value = ''; changed({keepInsp: true}); renderColors(); if (!VOLTS.includes(v)) VOLTS.push(v); };
+$('#vcReset').onclick = () => { commit(); P().colors.map = Object.assign({}, VC_DEFAULT); changed({keepInsp: true}); renderColors(); toast('Colors reset'); };
+$('#vcDefault').onclick = () => { try { localStorage.setItem('eol.colors', JSON.stringify(P().colors)); toast('New projects will start with these colors'); } catch { toast('Could not save the default on this device'); } };
+$('#schedClose').onclick = () => $('#dlgSched').close();
+$('#schedCsv').onclick = () => copyText(scheduleCSV(), 'Schedule CSV');
+$('#tWalk').onclick = () => { S.walk.on = !S.walk.on; if (S.walk.on && S.walk.cur === 0) S.walk.cur = seq().find(n => n.status !== 'done') ? Math.max(0, (seq().find(n => n.status !== 'done') || {step: 1}).step - 1) : 0; renderAll(); };
+$('#tUndo').onclick = undo; $('#tRedo').onclick = redo;
+$('#tZoomIn').onclick = () => zoomBy(1.2); $('#tZoomOut').onclick = () => zoomBy(1 / 1.2); $('#tFit').onclick = fitView;
+$('#wPrev').onclick = () => { S.walk.cur--; renderAll(); };
+$('#wNext').onclick = () => { S.walk.cur++; renderAll(); };
+$('#wExit').onclick = () => { S.walk.on = false; renderAll(); };
+$('#wRange').oninput = e => { S.walk.cur = +e.target.value; renderAll(); };
+$('#wDone').onclick = () => { const cur = seq().find(n => n.step === S.walk.cur); if (!cur) return; commit(); cur.status = 'done'; S.walk.cur++; changed(); };
+$('#sAddProc').onclick = addProc;
+$('#sReset').onclick = () => { commit(); P().nodes.forEach(n => n.status = 'pending'); changed(); toast('Progress cleared'); };
+$('#seqlist').addEventListener('click', e => {
+  const row = e.target.closest('[data-seq]'); if (!row) return; const n = node(row.dataset.seq); if (!n) return;
+  const act = e.target.closest('[data-act]');
+  if (act) { e.stopPropagation(); if (act.dataset.act === 'up') moveStep(n, -1); else if (act.dataset.act === 'down') moveStep(n, 1); else { commit(); n.status = n.status === 'done' ? 'pending' : 'done'; changed(); } return; }
+  S.sel = {kind: 'node', id: n.id}; renderAll();
+  if (!TYPES[n.type].proc && !isVisible(n)) centerOn(n);
+});
+$('#seqlist').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const row = e.target.closest('[data-seq]'); if (row) { e.preventDefault(); row.click(); } } });
+function isVisible(n) { const r = svg.getBoundingClientRect(); const sx = n.x * S.view.k + S.view.x, sy = n.y * S.view.k + S.view.y; return sx > 0 && sx < r.width && sy > 0 && sy < r.height; }
+function centerOn(n) { const r = svg.getBoundingClientRect(); S.view.x = r.width / 2 - n.x * S.view.k; S.view.y = r.height / 2 - n.y * S.view.k; renderCanvas(); }
+
+// palette
+const pal = $('#palette'); const palNote = pal.querySelector('.note');
+DRAWN.filter(t => !TYPES[t].hidden).forEach(t => {
+  const n = mkNode(t, 0, 0, {w: 36}); const b = document.createElement('button'); b.className = 'pal'; b.type = 'button'; b.title = TYPES[t].hint;
+  b.innerHTML = `<svg viewBox="${TYPES[t].h > 50 ? '-32 -36 64 72' : '-24 -28 48 56'}" aria-hidden="true">${symbol(n).replace(/class="port"/g, 'class="port" fill="currentColor" stroke="none" font-size="9"').replace(/class="glyph"/g, 'class="glyph" fill="currentColor" stroke="none" font-size="14" font-weight="600" text-anchor="middle"').replace(/class="fillsym"/g, 'fill="currentColor" stroke="none"').replace(/class="dot"/g, 'fill="currentColor" stroke="none"').replace(/class="bus"/g, 'stroke-width="5"')}</svg><span>${TYPES[t].name}<span class="hint">${TYPES[t].hint}</span></span>`;
+  b.onclick = () => addDevice(t); pal.insertBefore(b, palNote);
+});
+
+// project bar
+$('#projName').addEventListener('input', e => { P().name = e.target.value || 'Untitled project'; P().updatedAt = new Date().toISOString(); scheduleSave(); });
+$('#projName').addEventListener('change', renderProjectSelect);
+$('#projSel').addEventListener('change', async e => { await openProject(e.target.value); });
+const closeMenus = () => document.querySelectorAll('details.menu[open]').forEach(d => d.removeAttribute('open'));
+document.addEventListener('click', e => { if (!e.target.closest('details.menu')) closeMenus(); });
+$('#mNewBlank').onclick = () => { closeMenus(); newProject(blankProject('New project')); };
+S.templates = [];
+function projectFromTemplate(t) {
+  const p = normalize(JSON.parse(JSON.stringify(t.project))); p.id = uid('p'); p.name = 'New project — ' + t.name; p.drawing = ''; p.rev = '0'; p.date = today(); p.updatedAt = new Date().toISOString();
+  p.nodes.forEach(n => n.status = 'pending'); return p;
+}
+function renderTemplates() {
+  const el = $('#tplList');
+  el.innerHTML = `<div class="tplrow"><button data-tpl="__builtin">MV service, 2 unit subs (built in)</button></div>` +
+    S.templates.map(t => `<div class="tplrow"><button data-tpl="${esc(t.id)}">${esc(t.name)}</button><button class="x" data-tpldel="${esc(t.id)}" title="Delete template" aria-label="Delete template ${esc(t.name)}">×</button></div>`).join('');
+}
+$('#tplList').addEventListener('click', async e => {
+  const d = e.target.closest('[data-tpldel]'); if (d) { e.stopPropagation(); const t = S.templates.find(x => x.id === d.dataset.tpldel); await store.delTemplate(d.dataset.tpldel); S.templates = S.templates.filter(x => x.id !== d.dataset.tpldel); renderTemplates(); toast(`Template “${t ? t.name : ''}” deleted`); return; }
+  const b = e.target.closest('[data-tpl]'); if (!b) return; closeMenus();
+  if (b.dataset.tpl === '__builtin') return newProject(templateProject());
+  const t = S.templates.find(x => x.id === b.dataset.tpl); if (t) newProject(projectFromTemplate(t));
+});
+$('#mSaveTpl').onclick = () => { closeMenus(); $('#tplName').value = P().name; $('#dlgTpl').showModal(); };
+$('#tplCancel').onclick = () => $('#dlgTpl').close();
+$('#tplGo').onclick = async () => {
+  const name = $('#tplName').value.trim() || P().name; $('#dlgTpl').close();
+  const proj = JSON.parse(JSON.stringify(P())); delete proj.bg;
+  const t = {id: uid('t'), name, createdAt: new Date().toISOString(), project: proj};
+  try { await store.putTemplate(t); S.templates.unshift(t); renderTemplates(); toast(`Template “${name}” saved`); } catch { toast('Could not save the template (storage full?)'); }
+};
+$('#mDup').onclick = () => { closeMenus(); const c = normalize(JSON.parse(JSON.stringify(P()))); c.id = uid('p'); c.name = P().name + ' (copy)'; newProject(c); };
+$('#mRevs').onclick = async () => { closeMenus(); await openRevisions(); };
+$('#revClose').onclick = () => $('#dlgRev').close();
+S.revs = [];
+const revLabel = r => `Rev ${r.rev || '—'} · ${r.date || ''}${r.note ? ' · ' + r.note : ''}`;
+async function openRevisions() {
+  if (S.saveTimer) await flushSave();
+  S.revs = await store.getRevs(P().id);
+  $('#revLabel').value = P().rev || '0'; $('#revNote').value = '';
+  const opts = S.revs.map((r, i) => `<option value="${i}">${esc(revLabel(r))}</option>`).join('');
+  $('#revA').innerHTML = opts || '<option value="">No saved revisions yet</option>'; $('#revB').innerHTML = `<option value="cur">Current drawing</option>` + opts;
+  if (S.revs.length) $('#revA').value = String(S.revs.length - 1);
+  $('#revHint').textContent = S.revs.length ? `${S.revs.length} saved · the numeric revision bumps automatically after marking` : 'Mark a revision before issuing the switching order, then compare later edits against it.';
+  $('#revOut').innerHTML = S.revs.length ? '<table class="sched"><thead><tr><th>Revision</th><th>Marked</th><th>Devices</th><th>Steps</th><th></th></tr></thead><tbody>' + S.revs.map((r, i) => `<tr><td>${esc(revLabel(r))}</td><td>${new Date(r.at).toLocaleString([], {dateStyle: 'medium', timeStyle: 'short'})}</td><td>${r.nodes.filter(n => n.type !== 'proc').length}</td><td>${r.nodes.filter(n => n.step > 0).length}</td><td><button class="go" data-revdel="${i}">Delete</button></td></tr>`).join('') + '</tbody></table>' : '<span class="help">No saved revisions yet.</span>';
+  $('#revCopy').hidden = true;
+  $('#dlgRev').showModal();
+}
+$('#revMark').onclick = async () => {
+  const p = P(); const r = {id: uid('r'), rev: $('#revLabel').value.trim() || p.rev, note: $('#revNote').value.trim(), date: p.date, at: new Date().toISOString(), nodes: JSON.parse(JSON.stringify(p.nodes)), links: JSON.parse(JSON.stringify(p.links))};
+  const items = S.revs.concat(r).slice(-12);
+  try { await store.putRevs(p.id, items); S.revs = items; }
+  catch { toast('Could not save the revision: history is full. Delete an older revision.'); return; }
+  commit(); if (/^\d+$/.test(p.rev) && p.rev === r.rev) p.rev = String(+p.rev + 1); changed(); await openRevisions(); toast(`Marked ${revLabel(r)}`);
+};
+$('#revOut').addEventListener('click', async e => { const b = e.target.closest('[data-revdel]'); if (!b) return; S.revs.splice(+b.dataset.revdel, 1); try { await store.putRevs(P().id, S.revs); } catch {} await openRevisions(); });
+function diffRevs(a, b) {
+  const F = [['label', 'Tag'], ['type', 'Symbol'], ['volt', 'Voltage'], ['volt2', 'Secondary voltage'], ['amps', 'Rating'], ['kva', 'kVA'], ['sub', 'Note'], ['state', 'State'], ['step', 'Step'], ['hold', 'Hold point'], ['stayOpen', 'Stays open'], ['action', 'Action'], ['verify', 'Verify'], ['by', 'By'], ['witness', 'Witness']];
+  const am = new Map(a.nodes.map(n => [n.id, n])), bm = new Map(b.nodes.map(n => [n.id, n]));
+  const show = (k, v) => k === 'type' ? (TYPES[v] ? TYPES[v].name : v) : typeof v === 'boolean' ? (v ? 'yes' : 'no') : (v === '' || v == null ? '—' : String(v));
+  const out = {added: b.nodes.filter(n => !am.has(n.id)), removed: a.nodes.filter(n => !bm.has(n.id)), changed: [], moved: 0, linksAdded: [], linksRemoved: []};
+  b.nodes.forEach(n => { const o = am.get(n.id); if (!o) return; const fields = F.filter(([k]) => (o[k] ?? '') !== (n[k] ?? '')).map(([k, l]) => ({l, from: show(k, o[k] ?? ''), to: show(k, n[k] ?? '')})); if (fields.length) out.changed.push({n, fields}); if (o.x !== n.x || o.y !== n.y) out.moved++; });
+  const key = l => l.from + '>' + l.to, ak = new Set(a.links.map(key)), bk = new Set(b.links.map(key));
+  const nm = (m, id) => (m.get(id) || {label: '?'}).label;
+  out.linksAdded = b.links.filter(l => !ak.has(key(l))).map(l => `${nm(bm, l.from)} → ${nm(bm, l.to)}`);
+  out.linksRemoved = a.links.filter(l => !bk.has(key(l))).map(l => `${nm(am, l.from)} → ${nm(am, l.to)}`);
+  return out;
+}
+$('#revCompare').onclick = () => {
+  const ia = $('#revA').value, ib = $('#revB').value; if (ia === '') return;
+  const a = S.revs[+ia], b = ib === 'cur' ? {nodes: P().nodes, links: P().links} : S.revs[+ib];
+  const d = diffRevs(a, b); const nameA = revLabel(a), nameB = ib === 'cur' ? 'Current drawing' : revLabel(b);
+  const lines = [`${nameA}  →  ${nameB}`];
+  const sec = (t, arr, f) => { if (!arr.length) return; lines.push('', t + ` (${arr.length})`); arr.forEach(x => lines.push('  ' + f(x))); };
+  sec('Added', d.added, n => `${n.label}${n.step ? ' (step ' + n.step + ')' : ''}`);
+  sec('Removed', d.removed, n => `${n.label}${n.step ? ' (was step ' + n.step + ')' : ''}`);
+  sec('Changed', d.changed, c => `${c.n.label}: ` + c.fields.map(f => `${f.l} ${f.from} → ${f.to}`).join('; '));
+  sec('Connections added', d.linksAdded, x => x); sec('Connections removed', d.linksRemoved, x => x);
+  if (d.moved) lines.push('', `${d.moved} device${d.moved === 1 ? '' : 's'} moved on the drawing (position only)`);
+  if (lines.length === 1) lines.push('', 'No differences.');
+  S.revText = lines.join('\n');
+  const h = x => esc(x);
+  $('#revOut').innerHTML = `<div style="font-weight:600;margin-bottom:6px">${h(nameA)} <span class="help">→</span> ${h(nameB)}</div>` + (lines.length === 2 ? '<span class="help">No differences.</span>' : '') +
+    (d.added.length ? `<p style="margin:6px 0 2px"><b style="color:var(--ok)">Added (${d.added.length})</b></p><ul style="margin:0 0 0 18px">${d.added.map(n => `<li>${h(n.label)}${n.step ? ` <span class="help">step ${n.step}</span>` : ''}</li>`).join('')}</ul>` : '') +
+    (d.removed.length ? `<p style="margin:6px 0 2px"><b style="color:var(--live)">Removed (${d.removed.length})</b></p><ul style="margin:0 0 0 18px">${d.removed.map(n => `<li>${h(n.label)}${n.step ? ` <span class="help">was step ${n.step}</span>` : ''}</li>`).join('')}</ul>` : '') +
+    (d.changed.length ? `<p style="margin:6px 0 2px"><b>Changed (${d.changed.length})</b></p><table class="sched"><thead><tr><th>Device</th><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>${d.changed.flatMap(c => c.fields.map((f, i) => `<tr><td>${i ? '' : h(c.n.label)}</td><td>${h(f.l)}</td><td>${h(f.from)}</td><td>${h(f.to)}</td></tr>`)).join('')}</tbody></table>` : '') +
+    (d.linksAdded.length ? `<p style="margin:6px 0 2px"><b>Connections added (${d.linksAdded.length})</b></p><ul style="margin:0 0 0 18px">${d.linksAdded.map(h).map(x => `<li>${x}</li>`).join('')}</ul>` : '') +
+    (d.linksRemoved.length ? `<p style="margin:6px 0 2px"><b>Connections removed (${d.linksRemoved.length})</b></p><ul style="margin:0 0 0 18px">${d.linksRemoved.map(h).map(x => `<li>${x}</li>`).join('')}</ul>` : '') +
+    (d.moved ? `<p class="help" style="margin:6px 0 0">${d.moved} device${d.moved === 1 ? '' : 's'} moved on the drawing (position only).</p>` : '');
+  $('#revCopy').hidden = false;
+};
+$('#revCopy').onclick = () => copyText(S.revText || '', 'Comparison');
+$('#mBackupAll').onclick = async () => { closeMenus(); if (S.saveTimer) await flushSave(); const all = []; for (const x of S.list) { const p = await store.get(x.id); if (p) all.push(p); } if (!all.some(p => p.id === P().id)) all.push(P()); saveFile('energization-projects-backup-' + today() + '.json', JSON.stringify({kind: 'eol-backup', projects: all, templates: S.templates}, null, 2)); };
+$('#mImport').onclick = () => { closeMenus(); $('#impText').value = ''; $('#impFile').value = ''; $('#dlgImport').showModal(); };
+$('#impCancel').onclick = () => $('#dlgImport').close();
+$('#impFile').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { $('#impText').value = String(rd.result || ''); }; rd.readAsText(f); };
+$('#impGo').onclick = () => {
+  try { const raw = JSON.parse($('#impText').value);
+    if (raw && raw.kind === 'eol-backup' && Array.isArray(raw.projects)) { $('#dlgImport').close(); (async () => { let k = 0; for (const r of raw.projects) { const p = normalize(r); if (S.list.some(x => x.id === p.id)) p.id = uid('p'); await store.put(p); S.list.unshift({id: p.id, name: p.name, updatedAt: p.updatedAt}); k++; } for (const t of (raw.templates || [])) { if (!S.templates.some(x => x.id === t.id)) { await store.putTemplate(t); S.templates.unshift(t); } } renderTemplates(); renderProjectSelect(); toast(`Restored ${k} project${k === 1 ? '' : 's'}`); })(); return; }
+    const p = normalize(raw); if (S.list.some(x => x.id === p.id) || P().id === p.id) p.id = uid('p'); $('#dlgImport').close(); newProject(p); toast('Imported ' + p.name); }
+  catch { toast('That is not valid project JSON'); }
+};
+$('#mDelete').onclick = () => { closeMenus(); $('#delMsg').textContent = `“${P().name}” will be removed from your saved projects. This cannot be undone.`; $('#dlgDel').showModal(); };
+$('#delCancel').onclick = () => $('#dlgDel').close();
+$('#delGo').onclick = async () => {
+  $('#dlgDel').close(); clearTimeout(S.saveTimer); const id = P().id;
+  await store.del(id); S.list = S.list.filter(x => x.id !== id);
+  if (S.list.length) await openProject(S.list[0].id); else { S.project = templateProject(); S.hist = []; S.future = []; S.sel = null; renderAll(); fitView(); setStatus('Template loaded (saves on first edit)'); }
+  toast('Project deleted');
+};
+async function newProject(p) {
+  if (S.saveTimer) await flushSave();
+  S.project = p; S.hist = []; S.future = []; S.sel = null; S.walk = {on: false, cur: 0}; renderAll(); fitView();
+  await flushSave();
+}
+async function openProject(id) {
+  if (S.saveTimer) await flushSave();
+  if (id === P().id) return;
+  setStatus('Opening…'); const p = await store.get(id);
+  if (!p) { toast('Could not open that project'); renderProjectSelect(); return; }
+  S.project = p; S.hist = []; S.future = []; S.sel = null; S.walk = {on: false, cur: 0}; renderAll(); fitView(); setStatus('Opened');
+}
+
+/* ───────── export ───────── */
+function wrapText(t, max) { const words = String(t || '').split(/\s+/).filter(Boolean); const lines = []; let cur = ''; for (const w of words) { if ((cur + ' ' + w).trim().length > max && cur) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); } if (cur) lines.push(cur); return lines.length ? lines : ['']; }
+function exportBody(p, ds) { // links + devices with voltage colors, for exports (light colors)
+  const colOn = !!(p.colors && p.colors.on), SV = colOn ? sysVolts(p) : null, LP = linkPaths(p); let s = '';
+  for (const l of p.links) { const d = LP.get(l.id); if (!d) continue; const c = colOn ? voltColor((SV.get(l.from) || {}).out, p) : null; s += `<path class="link" d="${d}"${c ? ` style="stroke:${c}"` : ''}/>`; }
+  for (const n of ds) { const sv = colOn ? (SV.get(n.id) || {}) : null; s += nodeSVG(n, !colOn ? {} : XF.has(n.type) ? {color: voltColor(sv.v, p), color2: voltColor(sv.out, p)} : {color: voltColor(sv.v, p)}); }
+  return s;
+}
+function exportSVG() {
+  const p = P(); const ds = p.nodes.filter(n => !TYPES[n.type].proc); const list = seq();
+  const bg = p.bg && p.bg.data && p.bg.print !== false ? p.bg : null;
+  const bs = (ds.length ? ds.map(bbox) : [{x: 0, y: 0, w: 400, h: 200}]).concat(bg ? [{x: bg.x, y: bg.y, w: bg.w, h: bg.w * bg.ar}] : []);
+  const labelPad = n => (n.labelSide === 'l' ? 0 : (n.label.length + (subText(n) ? subText(n).length + 3 : 0)) * 7.4 + 40);
+  const minx = Math.min(...bs.map(b => b.x)) - 70, miny = Math.min(...bs.map(b => b.y)) - 40;
+  const maxx = Math.max(...ds.map(n => bbox(n).x + bbox(n).w + labelPad(n)), ...bs.map(b => b.x + b.w), minx + 500), maxy = Math.max(...bs.map(b => b.y + b.h)) + 50;
+  const dw = maxx - minx, dh = maxy - miny;
+  const W = Math.max(1100, dw + 80); const pad = 40; const titleH = 92;
+  // table layout
+  const cols = [{k: 'step', t: 'Step', w: 44}, {k: 'label', t: 'Device / step', w: 170}, {k: 'action', t: 'Action', w: 0}, {k: 'verify', t: 'Verify before next step', w: 0}, {k: 'who', t: 'By / witness', w: 170}];
+  const fixed = cols.reduce((a,c) => a + c.w, 0); const flex = (W - 2 * pad - fixed) / 2; cols[2].w = flex; cols[3].w = flex;
+  const rows = list.map(n => { const cells = {step: [String(n.step) + (n.hold ? ' H' : '')], label: wrapText(n.label + (subText(n) ? ' — ' + subText(n) : ''), 24), action: wrapText(n.action, Math.floor(flex / 6.6)), verify: wrapText(n.verify, Math.floor(flex / 6.6)), who: wrapText([n.by, n.witness].filter(Boolean).join(' / '), 24)}; const lines = Math.max(...Object.values(cells).map(c => c.length)); return {n, cells, h: lines * 14 + 10}; });
+  const tableTop = titleH + dh + 40; const tableH = 26 + rows.reduce((a,r) => a + r.h, 0);
+  const H = tableTop + tableH + 60;
+  const ink = '#1a1f26', mut = '#5f6873', acc = '#1f5fbf', hold = '#c47f00';
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<style>
+.sym{fill:#fff;stroke:${ink};stroke-width:1.6}.sym.closed{fill:${ink}}.gndbox{fill:none;stroke:none}.thin{stroke-width:1.2;fill:none}.fillsym{fill:${ink};stroke:none}.dot{fill:${ink}}.bus{stroke:${ink};stroke-width:5}
+.glyph{font-size:15px;font-weight:700;fill:${ink};text-anchor:middle}.port{font-size:10.5px;fill:${mut};text-anchor:middle}
+.lbl{font-size:13px;font-weight:700;fill:${ink}}.sub{font-size:11.5px;font-weight:400;fill:${mut}}.inlbl{font-size:12.5px;font-weight:700;fill:${ink};text-anchor:middle}
+.link{fill:none;stroke:${ink};stroke-width:1.6}.hit,.linkhit,.selbox,.handle{display:none}
+.badge circle{fill:#fff;stroke:${acc};stroke-width:1.6}.badge text{font-size:11px;font-weight:700;fill:${ink};text-anchor:middle;font-family:Menlo,Consolas,monospace}
+.badge.hold circle{stroke:${hold};fill:#fdf0d5}.badge.done circle{fill:${acc}}.badge.done text{fill:#fff}.badge.hold.done circle{fill:${hold}}
+.h1{font-size:20px;font-weight:700;fill:${ink}}.h2{font-size:11px;font-weight:700;fill:${mut};letter-spacing:.12em}.tb{font-size:11.5px;fill:${ink}}.tbk{font-size:10px;fill:${mut};letter-spacing:.08em}
+.th{font-size:10.5px;font-weight:700;fill:${mut};letter-spacing:.06em}.td{font-size:11px;fill:${ink}}
+</style>
+<rect width="${W}" height="${H}" fill="#fff"/>
+<rect x="${pad}" y="${pad / 2}" width="${W - 2 * pad}" height="${titleH - 24}" fill="none" stroke="${ink}" stroke-width="1.2"/>
+<text class="h2" x="${pad + 14}" y="${pad / 2 + 20}">ENERGIZATION ORDER · ONE-LINE</text>
+<text class="h1" x="${pad + 14}" y="${pad / 2 + 46}">${esc(p.name)}</text>
+${p.notes ? `<text class="tb" x="${pad + 14}" y="${pad / 2 + 62}">${esc(wrapText(p.notes, 110)[0])}</text>` : ''}
+<g transform="translate(${W - pad - 330} ${pad / 2})">
+  <line x1="0" y1="0" x2="0" y2="${titleH - 24}" stroke="${ink}" stroke-width="1.2"/>
+  <text class="tbk" x="14" y="16">DRAWING</text><text class="tb" x="14" y="31">${esc(p.drawing || '—')}</text>
+  <text class="tbk" x="124" y="16">REV</text><text class="tb" x="124" y="31">${esc(p.rev || '—')}</text>
+  <text class="tbk" x="184" y="16">DATE</text><text class="tb" x="184" y="31">${esc(p.date || '—')}</text>
+  <text class="tbk" x="14" y="50">PREPARED BY</text><text class="tb" x="14" y="64">${esc(p.by || '—')}</text>
+  <text class="tbk" x="184" y="50">STEPS</text><text class="tb" x="184" y="64">${list.length} · ${list.filter(n => n.hold).length} hold point${list.filter(n => n.hold).length === 1 ? '' : 's'}</text>
+</g>
+<g transform="translate(${pad + 24} ${titleH + 2})"><g class="badge"><circle r="8"/><text y="3.5" style="font-size:9px">n</text></g><text class="tbk" x="14" y="3.5">ENERGIZATION STEP</text>
+  <g class="badge hold" transform="translate(150 0)"><circle r="8"/><text y="3.5" style="font-size:9px">n</text></g><text class="tbk" x="164" y="3.5">WITNESSED HOLD POINT</text>
+  <g transform="translate(330 0)">${legendSVG(p).svg}</g></g>
+<g transform="translate(${pad + 20 - minx} ${titleH - miny})">`;
+  if (bg) s += `<image href="${bg.data}" x="${bg.x}" y="${bg.y}" width="${bg.w}" height="${bg.w * bg.ar}" opacity="${bg.opacity}" preserveAspectRatio="none"/>`;
+  s += exportBody(p, ds);
+  s += `</g>`;
+  // table
+  let y = tableTop; let x = pad;
+  s += `<line x1="${pad}" y1="${y - 10}" x2="${W - pad}" y2="${y - 10}" stroke="${ink}" stroke-width="1.2"/>`;
+  cols.forEach(c => { s += `<text class="th" x="${x + 6}" y="${y + 6}">${esc(c.t.toUpperCase())}</text>`; x += c.w; });
+  y += 16; s += `<line x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}" stroke="${ink}" stroke-width="1.2"/>`;
+  rows.forEach(r => {
+    let cx = pad; cols.forEach(c => { r.cells[c.k].forEach((line, i) => { s += `<text class="td" x="${cx + 6}" y="${y + 17 + i * 14}"${c.k === 'step' ? ` font-weight="700"${r.n.hold ? ` fill="${hold}"` : ''}` : ''}>${esc(line)}</text>`; }); cx += c.w; });
+    y += r.h; s += `<line x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}" stroke="#d4d9d2" stroke-width="1"/>`;
+  });
+  if (!rows.length) s += `<text class="td" x="${pad + 6}" y="${y + 17}" fill="${mut}">No steps numbered yet.</text>`;
+  s += `<text class="tbk" x="${pad}" y="${H - 18}">H = witnessed hold point. Generated ${new Date().toLocaleDateString()} with Energization One-Line.</text></svg>`;
+  return s;
+}
+function exportCSV() {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const head = ['Step', 'Device', 'Voltage', 'Rating', 'Note', 'Action', 'Verify before next step', 'By', 'Witness', 'Hold point', 'Stays open', 'Status', 'Notes'];
+  return [head.map(q).join(',')].concat(seq().map(n => [n.step, n.label, voltText(n), ratingText(n), n.sub, n.action, n.verify, n.by, n.witness, n.hold ? 'Yes' : '', n.stayOpen ? 'Yes' : '', n.status, n.notes].map(q).join(','))).join('\r\n');
+}
+const safeName = () => (P().name || 'project').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) || 'project';
+async function copyText(t, what) {
+  try { await navigator.clipboard.writeText(t); toast(what + ' copied'); }
+  catch { const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast(what + ' copied'); } catch { toast('Copy blocked; use a download instead'); } ta.remove(); }
+}
+async function saveFile(filename, data) {
+  if (!store.dl) {
+    const blob = data instanceof Blob ? data : new Blob([data], {type: filename.endsWith('.svg') ? 'image/svg+xml' : filename.endsWith('.csv') ? 'text/csv' : filename.endsWith('.json') ? 'application/json' : 'application/octet-stream'});
+    if (COARSE && navigator.canShare) { try { const f = new File([blob], filename, {type: blob.type || 'application/octet-stream'}); if (navigator.canShare({files: [f]})) { await navigator.share({files: [f], title: filename}); toast('Shared ' + filename); return; } } catch (err) { if (err && err.name === 'AbortError') return; } }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast('Downloaded ' + filename); return;
+  }
+  try { await store.dl.save({filename, data}); toast('Saved ' + filename); }
+  catch (e) { if (e && e.code === 'declined') return; toast('Could not save: ' + (e && e.code ? e.code : 'unknown')); }
+}
+function svgToPng(svgText) {
+  return new Promise((res, rej) => {
+    const m = svgText.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/); const W = +m[1], H = +m[2];
+    const img = new Image(); const url = URL.createObjectURL(new Blob([svgText], {type: 'image/svg+xml;charset=utf-8'}));
+    img.onload = () => { const c = document.createElement('canvas'); c.width = W * 2; c.height = H * 2; const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error('blob')), 'image/png'); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('render')); }; img.src = url;
+  });
+}
+/* ───────── PDF (hand-built: 11×17 landscape, Helvetica, JPEG drawing) ───────── */
+const HW = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+const pdfClean = t => String(t ?? '').replace(/[\u2013\u2014\u2212]/g, '-').replace(/\u00b7/g, '-').replace(/\u2192/g, '->').replace(/[\u201c\u201d]/g, '"').replace(/[\u2018\u2019]/g, "'").replace(/\u2026/g, '...').replace(/[^\x20-\x7e\xa0-\xff]/g, '?');
+const pdfW = (t, size, bold) => { let w = 0; for (const ch of t) { const c = ch.charCodeAt(0); w += c >= 32 && c <= 126 ? HW[c - 32] : 556; } return w / 1000 * size * (bold ? 1.06 : 1); };
+function pdfWrap(t, size, maxW, bold) { const out = []; for (const para of pdfClean(t).split(/\n/)) { let cur = ''; for (const w of para.split(/\s+/).filter(Boolean)) { const tryS = cur ? cur + ' ' + w : w; if (pdfW(tryS, size, bold) > maxW && cur) { out.push(cur); cur = w; } else cur = tryS; } out.push(cur); } return out.length ? out : ['']; }
+const pdfEsc = t => t.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+function drawingSVG() { // just the drawing, tight bounds, for rasterizing
+  const p = P(); const ds = p.nodes.filter(n => !TYPES[n.type].proc); const bg = p.bg && p.bg.data && p.bg.print !== false ? p.bg : null;
+  const bs = (ds.length ? ds.map(bbox) : [{x: 0, y: 0, w: 400, h: 200}]).concat(bg ? [{x: bg.x, y: bg.y, w: bg.w, h: bg.w * bg.ar}] : []);
+  const labelPad = n => (n.labelSide === 'l' ? 0 : (n.label.length + (subText(n) ? subText(n).length + 3 : 0)) * 7.4 + 40);
+  const minx = Math.min(...bs.map(b => b.x)) - 60, miny = Math.min(...bs.map(b => b.y)) - 36;
+  const maxx = Math.max(...ds.map(n => bbox(n).x + bbox(n).w + labelPad(n)), ...bs.map(b => b.x + b.w)) + 20, maxy = Math.max(...bs.map(b => b.y + b.h)) + (p.colors && p.colors.on ? 64 : 44);
+  const W = maxx - minx, H = maxy - miny; const styles = exportSVG().match(/<style>[\s\S]*?<\/style>/)[0];
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">${styles}<rect width="${W}" height="${H}" fill="#fff"/><g transform="translate(${-minx} ${-miny})">`;
+  if (bg) s += `<image href="${bg.data}" x="${bg.x}" y="${bg.y}" width="${bg.w}" height="${bg.w * bg.ar}" opacity="${bg.opacity}" preserveAspectRatio="none"/>`;
+  s += exportBody(p, ds);
+  const lg = legendSVG(p); if (lg.w) s += `<g transform="translate(${minx + 14} ${maxy - 14})">${lg.svg}</g>`;
+  return s + '</g></svg>';
+}
+function svgToJpeg(svgText, targetW) {
+  return new Promise((res, rej) => {
+    const m = svgText.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/); const W = +m[1], H = +m[2]; const sc = Math.min(4, Math.max(1, targetW / W));
+    const img = new Image(); const url = URL.createObjectURL(new Blob([svgText], {type: 'image/svg+xml;charset=utf-8'}));
+    img.onload = () => { const c = document.createElement('canvas'); c.width = Math.round(W * sc); c.height = Math.round(H * sc); const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); c.toBlob(async b => b ? res({bytes: new Uint8Array(await b.arrayBuffer()), w: c.width, h: c.height}) : rej(new Error('blob')), 'image/jpeg', .9); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('render')); }; img.src = url;
+  });
+}
+async function makePDF() {
+  const p = P(), list = seq(); const PW = 1224, PH = 792, M = 36;
+  const img = await svgToJpeg(drawingSVG(), 3000);
+  const pages = []; let c = '';
+  const T = (x, y, t, size, bold, gray) => { c += `BT /F${bold ? 2 : 1} ${size} Tf ${gray ? '0.37 0.41 0.45 rg' : '0.1 0.12 0.15 rg'} 1 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)} Tm (${pdfEsc(pdfClean(t))}) Tj ET\n`; };
+  const L = (x1, y1, x2, y2, w, gray) => { c += `${gray ? '0.83 0.85 0.82 RG' : '0.1 0.12 0.15 RG'} ${w} w ${x1.toFixed(1)} ${y1.toFixed(1)} m ${x2.toFixed(1)} ${y2.toFixed(1)} l S\n`; };
+  // page 1: title block + drawing
+  const tbTop = PH - M, tbH = 62;
+  L(M, tbTop, PW - M, tbTop, 1.2); L(M, tbTop - tbH, PW - M, tbTop - tbH, 1.2); L(M, tbTop, M, tbTop - tbH, 1.2); L(PW - M, tbTop, PW - M, tbTop - tbH, 1.2); L(PW - M - 330, tbTop, PW - M - 330, tbTop - tbH, 1.2);
+  T(M + 12, tbTop - 16, 'ENERGIZATION ORDER - ONE-LINE', 8.5, true, true); T(M + 12, tbTop - 38, p.name, 17, true);
+  if (p.notes) T(M + 12, tbTop - 53, pdfWrap(p.notes, 9, PW - 2 * M - 360)[0], 9);
+  const rx = PW - M - 330 + 12;
+  T(rx, tbTop - 14, 'DRAWING', 7, false, true); T(rx, tbTop - 27, p.drawing || '-', 10); T(rx + 110, tbTop - 14, 'REV', 7, false, true); T(rx + 110, tbTop - 27, p.rev || '-', 10); T(rx + 170, tbTop - 14, 'DATE', 7, false, true); T(rx + 170, tbTop - 27, p.date || '-', 10);
+  T(rx, tbTop - 42, 'PREPARED BY', 7, false, true); T(rx, tbTop - 55, p.by || '-', 10); T(rx + 170, tbTop - 42, 'STEPS', 7, false, true); T(rx + 170, tbTop - 55, `${list.length} - ${list.filter(n => n.hold).length} hold points`, 10);
+  const areaTop = tbTop - tbH - 14, areaBot = M + 24, areaW = PW - 2 * M, areaH = areaTop - areaBot;
+  const sc = Math.min(areaW / img.w, areaH / img.h); const dw = img.w * sc, dh = img.h * sc; const dx = M + (areaW - dw) / 2, dy = areaBot + (areaH - dh);
+  c += `q ${dw.toFixed(1)} 0 0 ${dh.toFixed(1)} ${dx.toFixed(1)} ${dy.toFixed(1)} cm /Im1 Do Q\n`;
+  T(M, M + 8, 'Numbered badges = energization order. Amber = witnessed hold point. Step table follows.', 8, false, true);
+  pages.push(c); c = '';
+  // table pages
+  const cols = [{t: 'STEP', w: 40}, {t: 'DEVICE / STEP', w: 190}, {t: 'ACTION', w: 0}, {t: 'VERIFY BEFORE NEXT STEP', w: 0}, {t: 'BY / WITNESS', w: 160}, {t: 'DONE', w: 70}];
+  const flex = (PW - 2 * M - cols.reduce((a, k) => a + k.w, 0)) / 2; cols[2].w = flex; cols[3].w = flex;
+  const fs = 9, lh = 11.5, pad = 5;
+  const header = y => { T(M, y, 'Energization sequence - ' + p.name, 11, true); y -= 18; L(M, y + 4, PW - M, y + 4, 1); let x = M; cols.forEach(k => { T(x + pad, y - 8, k.t, 7, true, true); x += k.w; }); y -= 14; L(M, y, PW - M, y, 1); return y; };
+  let y = header(PH - M - 4);
+  const rows = list.map(n => { const cells = [[String(n.step) + (n.hold ? ' H' : '')], pdfWrap(n.label + (subText(n) ? ' - ' + subText(n) : ''), fs, cols[1].w - 2 * pad), pdfWrap(n.action, fs, flex - 2 * pad), pdfWrap(n.verify, fs, flex - 2 * pad), pdfWrap([n.by, n.witness].filter(Boolean).join(' / '), fs, cols[4].w - 2 * pad), ['']]; return {n, cells, h: Math.max(...cells.map(k => k.length)) * lh + 2 * pad}; });
+  if (!rows.length) T(M + pad, y - 14, 'No steps numbered yet.', fs, false, true);
+  rows.forEach(r => {
+    if (y - r.h < M + 24) { pages.push(c); c = ''; y = header(PH - M - 4); }
+    let x = M; r.cells.forEach((lines, i) => { lines.forEach((ln, j) => T(x + pad, y - pad - fs - j * lh + 2, ln, fs, i === 0)); x += cols[i].w; });
+    c += `0.6 0.6 0.6 RG 0.8 w ${(PW - M - cols[5].w + pad).toFixed(1)} ${(y - r.h + pad).toFixed(1)} 9 9 re S\n`;
+    y -= r.h; L(M, y, PW - M, y, .6, true);
+  });
+  T(M, M + 8, 'H = witnessed hold point. Done column for field initials.', 8, false, true);
+  pages.push(c);
+  // assemble
+  const lat1 = str => Uint8Array.from(str, ch => ch.charCodeAt(0) & 255);
+  const chunks = []; let len = 0; const offs = []; const put = b => { chunks.push(b); len += b.length; };
+  put(lat1('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n'));
+  const nObj = 5 + pages.length * 2; const kids = pages.map((_, i) => `${6 + i * 2} 0 R`).join(' ');
+  const obj = (n, body) => { offs[n] = len; put(lat1(`${n} 0 obj\n${body}\nendobj\n`)); };
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>'); obj(2, `<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`);
+  obj(3, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'); obj(4, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+  offs[5] = len; put(lat1(`5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${img.w} /Height ${img.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.bytes.length} >>\nstream\n`)); put(img.bytes); put(lat1('\nendstream\nendobj\n'));
+  pages.forEach((pc, i) => {
+    const footer = `BT /F1 7.5 Tf 0.37 0.41 0.45 rg 1 0 0 1 ${(PW - M - 60).toFixed(1)} ${(M + 8).toFixed(1)} Tm (Page ${i + 1} of ${pages.length}) Tj ET\n`;
+    const body = pc + footer; const bb = lat1(body);
+    obj(6 + i * 2, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << /Im1 5 0 R >> >> /Contents ${7 + i * 2} 0 R >>`);
+    offs[7 + i * 2] = len; put(lat1(`${7 + i * 2} 0 obj\n<< /Length ${bb.length} >>\nstream\n`)); put(bb); put(lat1('\nendstream\nendobj\n'));
+  });
+  const xref = len; let x = `xref\n0 ${nObj + 1}\n0000000000 65535 f \n`; for (let i = 1; i <= nObj; i++) x += String(offs[i]).padStart(10, '0') + ' 00000 n \n';
+  put(lat1(x + `trailer\n<< /Size ${nObj + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`));
+  return new Blob(chunks, {type: 'application/pdf'});
+}
+$('#exportSheet').addEventListener('click', async e => {
+  const b = e.target.closest('[data-exp]'); if (!b) return; closeMenus(); const k = b.dataset.exp;
+  if (k === 'svg-dl') saveFile(safeName() + '-energization.svg', exportSVG());
+  else if (k === 'svg-copy') copyText(exportSVG(), 'SVG');
+  else if (k === 'pdf-dl') { try { toast('Building PDF…'); const blob = await makePDF(); saveFile(safeName() + '-energization.pdf', blob); } catch (err) { toast('PDF build failed; try SVG or PNG'); } }
+  else if (k === 'png-dl') { try { const blob = await svgToPng(exportSVG()); saveFile(safeName() + '-energization.png', blob); } catch { toast('PNG render failed; try SVG'); } }
+  else if (k === 'csv-dl') saveFile(safeName() + '-steps.csv', exportCSV());
+  else if (k === 'csv-copy') copyText(exportCSV(), 'CSV');
+  else if (k === 'json-dl') saveFile(safeName() + '.json', JSON.stringify(P(), null, 2));
+  else if (k === 'json-copy') copyText(JSON.stringify(P(), null, 2), 'Project JSON');
+});
+
+/* ───────── pre-built lineups ───────── */
+const LINEUPS = {
+  radial: {name: 'Single main', hint: 'Main → bus → feeders', sections: 1, tag: 'SWBD-1', icon: '<rect x="-5" y="-22" width="10" height="10"/><line x1="-20" y1="-2" x2="20" y2="-2" stroke-width="4"/><line x1="0" y1="-12" x2="0" y2="-2"/><line x1="-12" y1="-2" x2="-12" y2="8"/><line x1="12" y1="-2" x2="12" y2="8"/><rect x="-17" y="8" width="10" height="10"/><rect x="7" y="8" width="10" height="10"/>'},
+  mtm: {name: 'Main-tie-main', hint: '2 sections, 1 N.O. tie', sections: 2, tag: 'SWBD-1', icon: '<rect x="-19" y="-22" width="10" height="10"/><rect x="9" y="-22" width="10" height="10"/><line x1="-14" y1="-12" x2="-14" y2="-2"/><line x1="14" y1="-12" x2="14" y2="-2"/><line x1="-24" y1="-2" x2="-6" y2="-2" stroke-width="4"/><line x1="6" y1="-2" x2="24" y2="-2" stroke-width="4"/><rect x="-5" y="-7" width="10" height="10"/><line x1="-14" y1="-2" x2="-14" y2="8"/><line x1="14" y1="-2" x2="14" y2="8"/><rect x="-19" y="8" width="10" height="10"/><rect x="9" y="8" width="10" height="10"/>'},
+  mtmtm: {name: 'Main-tie-main-tie-main', hint: '3 sections, 2 ties', sections: 3, tag: 'SWGR-1', icon: '<rect x="-22" y="-22" width="8" height="8"/><rect x="-4" y="-22" width="8" height="8"/><rect x="14" y="-22" width="8" height="8"/><line x1="-18" y1="-14" x2="-18" y2="-4"/><line x1="0" y1="-14" x2="0" y2="-4"/><line x1="18" y1="-14" x2="18" y2="-4"/><line x1="-25" y1="-4" x2="-13" y2="-4" stroke-width="4"/><line x1="-5" y1="-4" x2="5" y2="-4" stroke-width="4"/><line x1="13" y1="-4" x2="25" y2="-4" stroke-width="4"/><rect x="-13" y="-8" width="8" height="8"/><rect x="5" y="-8" width="8" height="8"/><line x1="-18" y1="-4" x2="-18" y2="8"/><line x1="0" y1="-4" x2="0" y2="8"/><line x1="18" y1="-4" x2="18" y2="8"/><rect x="-22" y="8" width="8" height="8"/><rect x="-4" y="8" width="8" height="8"/><rect x="14" y="8" width="8" height="8"/>'},
+  dblsub: {name: 'Double-ended unit sub', hint: '2 transformers, M-T-M secondary', sections: 2, tag: 'US-1', incoming: 'xoil', icon: '<circle cx="-14" cy="-20" r="5"/><circle cx="-14" cy="-13" r="5"/><circle cx="14" cy="-20" r="5"/><circle cx="14" cy="-13" r="5"/><line x1="-14" y1="-8" x2="-14" y2="-2"/><line x1="14" y1="-8" x2="14" y2="-2"/><rect x="-19" y="-4" width="10" height="10"/><rect x="9" y="-4" width="10" height="10"/><line x1="-14" y1="6" x2="-14" y2="12"/><line x1="14" y1="6" x2="14" y2="12"/><line x1="-24" y1="12" x2="-6" y2="12" stroke-width="4"/><line x1="6" y1="12" x2="24" y2="12" stroke-width="4"/><rect x="-5" y="7" width="10" height="10"/>'},
+  genats: {name: 'Generator + ATS', hint: 'N feeder, gen breaker, ATS, loads', special: true, tag: 'ATS-1', icon: '<rect x="-21" y="-22" width="10" height="10"/><circle cx="12" cy="-16" r="7"/><text x="12" y="-12.5" font-size="9" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">G</text><rect x="7" y="-5" width="10" height="10"/><line x1="-16" y1="-12" x2="-16" y2="8"/><line x1="12" y1="-9" x2="12" y2="-5"/><line x1="12" y1="5" x2="12" y2="8"/><rect x="-22" y="8" width="44" height="12" rx="2"/>'},
+};
+let luKind = 'mtm';
+const LU_SEL = {luVolt: [() => optList(VOLTS, ''), NORM.volt], luPri: [() => optList(VOLTS, ''), NORM.volt], luMainA: [() => optList(AMPS, ''), NORM.amps], luFdrA: [() => optList(AMPS, ''), NORM.amps], luKva: [() => kvaOpts(''), NORM.kva]};
+function luSelect(id, val) { // (re)build a lineup dropdown, restoring it if it was swapped for a text box
+  let el = $('#' + id);
+  if (el.tagName !== 'SELECT') { const sel = document.createElement('select'); sel.id = id; el.replaceWith(sel); el = sel; }
+  el.innerHTML = LU_SEL[id][0](); el.value = val;
+  el.onchange = () => { if (el.value === '__other') onOther(el, v => { const inp = $('#' + id); if (v === null) { luSelect(id, ''); return; } inp.value = v ? LU_SEL[id][1](v) : ''; }); };
+}
+const luVal = id => { const el = $('#' + id); return el.value === '__other' ? '' : el.value.trim(); };
+const lu = $('#lineups');
+Object.keys(LINEUPS).forEach(k => {
+  const L = LINEUPS[k]; const b = document.createElement('button'); b.className = 'pal'; b.type = 'button'; b.title = L.hint;
+  b.innerHTML = `<svg viewBox="-28 -28 56 56" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">${L.icon}</svg><span>${L.name}<span class="hint">${L.hint}</span></span>`;
+  b.onclick = () => openLineup(k); lu.appendChild(b);
+});
+function openLineup(k) {
+  luKind = k; const L = LINEUPS[k];
+  $('#luTitle').textContent = 'Insert: ' + L.name; $('#luHint').textContent = L.special ? 'Normal feeder breaker to the ATS N input, generator and output breaker to the E input, emergency loads below. Each piece stays editable.' : `${L.sections} bus section${L.sections > 1 ? 's' : ''}, a main breaker on each${L.sections > 1 ? `, ${L.sections - 1} normally-open tie${L.sections > 2 ? 's' : ''}` : ''}, and the feeders you choose. Each piece stays editable.`;
+  $('#luTag').value = L.tag; luSelect('luVolt', '480/277V'); luSelect('luPri', '13.8kV'); luSelect('luKva', '2000');
+  $('#luRowSec').hidden = !!L.special; $('#luRowGen').hidden = !L.special;
+  $('#luMainA').previousElementSibling.textContent = L.special ? 'ATS rating' : 'Main, bus and tie rating';
+  $('#luFdrA').previousElementSibling.textContent = L.special ? 'Normal and gen breaker rating' : 'Feeder rating';
+  luSelect('luMainA', L.special ? '600A' : '3000A'); luSelect('luFdrA', L.special ? '600A' : '400A');
+  $('#luIn').value = L.incoming || 'source'; $('#luRowPri').hidden = L.special || !$('#luIn').value.startsWith('x');
+  const sel = S.sel && S.sel.kind === 'node' ? node(S.sel.id) : null;
+  $('#luSel').textContent = sel && !TYPES[sel.type].proc ? `“${sel.label}” is selected: with “Nothing (connect later)” the first main is fed from it${L.special ? '' : ''}.` : 'Nothing is selected: the lineup is placed beside the drawing.';
+  if (L.special) $('#luSel').textContent = sel && !TYPES[sel.type].proc ? `“${sel.label}” is selected: it feeds the normal (N) breaker.` : 'Select a bus first to feed the normal (N) breaker from it, or connect it later.';
+  $('#dlgLineup').showModal();
+}
+$('#luIn').onchange = () => { $('#luRowPri').hidden = !$('#luIn').value.startsWith('x'); };
+$('#luCancel').onclick = () => $('#dlgLineup').close();
+$('#luGo').onclick = () => {
+  $('#dlgLineup').close();
+  insertLineup(luKind, {tag: $('#luTag').value.trim() || 'SWBD', voltage: luVal('luVolt'), mainA: luVal('luMainA'), fdrA: luVal('luFdrA'), feeders: clamp(parseInt($('#luFeeders').value) || 0, 0, 8), incoming: $('#luIn').value, primary: luVal('luPri'), kva: luVal('luKva'), gen: $('#luGen').value.trim() || 'GEN-1', number: $('#luNumber').checked});
+};
+function insertLineup(kind, o) {
+  commit();
+  const p = P(), L = LINEUPS[kind], nodes = [], links = [], steps = [], LET = ['A','B','C','D','E'];
+  const add = (type, x, y, extra) => { const n = mkNode(type, x, y, extra); nodes.push(n); return n; };
+  const link = (a, b) => links.push({id: uid('l'), from: a.id, to: b.id});
+  let anchor;
+  if (L.special) {
+    const nf = add('breaker', 0, 0, {label: `Fdr ${o.tag} (N)`, amps: o.fdrA, labelSide: 'b', badgePos: 'left', action: `Energize normal side of ${o.tag}.`, verify: 'ATS shows normal available and on normal'});
+    const gen = add('generator', 88, 16, {label: o.gen, volt: o.voltage, action: 'Start generator with output breaker open.', verify: 'Voltage, frequency and rotation at gen breaker'});
+    const gb = add('breaker', 88, 80, {label: `${o.gen} output`, amps: o.fdrA, hold: true, action: `Close gen breaker; energize emergency side of ${o.tag}.`, verify: 'Rotation matches normal at ATS'});
+    const ats = add('ats', 44, 152, {label: o.tag, volt: o.voltage, amps: o.mainA});
+    const ld = add('load', 44, 216, {label: 'Emergency loads', labelSide: 'r'});
+    link(nf, ats); link(gen, gb); link(gb, ats); link(ats, ld); steps.push(nf, gen, gb); anchor = nf;
+  } else {
+    const secs = L.sections, fp = o.feeders, lblW = (o.tag.length + 1 + (o.voltage ? o.voltage.length + 3 : 0) + (o.mainA ? o.mainA.length + 3 : 0)) * 7.2, secW = snap(Math.max(176, fp * 96 + 80, 2 * lblW + 48)), gap = 88, yBus = 0, yMain = -56;
+    const buses = [], feeders = [];
+    for (let i = 0; i < secs; i++) {
+      const left = i * (secW + gap), cx = left + secW / 2, sfx = secs > 1 ? LET[i] : '', tag = o.tag + sfx;
+      const bus = add('bus', cx, yBus, {label: tag, volt: o.voltage, amps: o.mainA, w: secW, labelSide: 'l'}); buses.push(bus);
+      const main = add('breaker', cx, yMain, {label: `${tag} main`, volt: o.voltage, amps: o.mainA, action: `Close main; energize ${tag} bus.`, verify: 'Bus voltage balanced; rotation; no relay alarms'});
+      link(main, bus); if (i === 0) anchor = main;
+      let top = main; const chain = [];
+      if (o.incoming === 'xoil' || o.incoming === 'xdry' || o.incoming === 'xfmr') {
+        const t = add(o.incoming === 'xdry' ? 'xfmr_dry' : 'xfmr_oil', cx, yMain - 88, {label: `T-${sfx || '1'}`, volt: o.primary, volt2: o.voltage, kva: o.kva});
+        const pri = add('breaker', cx, yMain - 168, {label: `Pri ${tag}`, volt: o.primary, action: `Close primary; energize T-${sfx || '1'} at no load.`, verify: 'Secondary voltage and rotation; no abnormal noise or heat; soak per spec'});
+        link(pri, t); link(t, main); top = pri; chain.push(pri); if (i === 0) anchor = pri;
+      }
+      if (o.incoming !== 'none') {
+        const src = add('source', cx, top.y - 64, {label: `Incoming ${sfx || ''}`.trim(), volt: o.incoming.startsWith('x') ? o.primary : o.voltage, hold: true, action: `Energize incoming to ${top.label} line side.`, verify: 'Voltage on all phases at incoming; rotation ABC'});
+        link(src, top); chain.unshift(src);
+      }
+      steps.push(...chain, main);
+      for (let j = 0; j < fp; j++) {
+        const f = add('breaker', cx - (fp - 1) * 48 + j * 96, yBus + 56, {label: `${tag}-${j + 1}`, amps: o.fdrA, labelSide: 'b', badgePos: 'left', action: 'Close feeder.', verify: 'Voltage at load side; energized label hung'});
+        link(bus, f); feeders.push(f);
+      }
+    }
+    for (let i = 0; i < secs - 1; i++) {
+      const tie = add('breaker', buses[i].x + secW / 2 + gap / 2, yBus, {label: `Tie ${LET[i]}–${LET[i + 1]}`, amps: o.mainA, sub: 'N.O.', labelSide: 'a', hold: true, stayOpen: true, action: 'Phase check across open tie; test main-tie-main interlock.', verify: 'Phasing matches; interlock works per design; tie left open'});
+      link(buses[i], tie); link(tie, buses[i + 1]); steps.push(tie);
+    }
+    steps.push(...feeders);
+  }
+  // placement
+  const sel = S.sel && S.sel.kind === 'node' ? node(S.sel.id) : null;
+  const feedFromSel = sel && !TYPES[sel.type].proc && (L.special || o.incoming === 'none');
+  const minX = Math.min(...nodes.map(n => bbox(n).x)), minY = Math.min(...nodes.map(n => bbox(n).y));
+  const drawn = p.nodes.filter(n => !TYPES[n.type].proc);
+  let dx, dy;
+  if (feedFromSel && sel.type === 'bus') {
+    const kids = p.links.filter(l => l.from === sel.id).map(l => node(l.to)).filter(n => n && n.y > sel.y);
+    const kx = kids.length ? Math.max(...kids.map(k => k.x)) + 120 : sel.x - geom(sel).w / 2 + 48;
+    dx = kx - anchor.x; dy = sel.y + 56 - anchor.y;
+    const need = kx + 24 - (sel.x - sel.w / 2); if (need > sel.w) { sel.x = snap(sel.x + (need - sel.w) / 2); sel.w = snap(need); }
+  } else if (feedFromSel) { dx = sel.x - anchor.x; dy = sel.y + 88 - minY; }
+  else if (drawn.length) { dx = Math.max(...drawn.map(n => bbox(n).x + bbox(n).w)) + 200 - minX; dy = Math.min(...drawn.map(n => bbox(n).y)) - minY; }
+  else { dx = 120 - minX; dy = 80 - minY; }
+  if (feedFromSel) { // push down below anything already in the way
+    const gx1 = Math.min(...nodes.map(n => bbox(n).x)) + dx - 40, gx2 = Math.max(...nodes.map(n => bbox(n).x + bbox(n).w)) + dx + 140, gy = minY + dy;
+    const block = drawn.filter(n => n.id !== sel.id && n.type !== 'bus' && bbox(n).x + bbox(n).w > gx1 && bbox(n).x < gx2 && bbox(n).y + bbox(n).h > gy - 16 && n.y > sel.y);
+    if (block.length) dy += Math.max(...block.map(n => bbox(n).y + bbox(n).h)) + 48 - gy;
+  }
+  nodes.forEach(n => { n.x = snap(n.x + dx); n.y = snap(n.y + dy); });
+  if (feedFromSel) links.push({id: uid('l'), from: sel.id, to: anchor.id});
+  if (o.number) { let k = seq(p).length; steps.forEach(n => n.step = ++k); }
+  p.nodes.push(...nodes); p.links.push(...links);
+  S.sel = {kind: 'node', id: anchor.id}; S.scrollSeq = true; changed(); fitView();
+  toast(`${L.name} inserted: ${nodes.length} devices${o.number ? ', steps ' + (steps[0].step) + '–' + steps[steps.length - 1].step : ''}`);
+}
+window.__eol = {exportSVG, exportCSV, insertLineup, makePDF, linkPts, routeRaw, get view() { return S.view; }, get project() { return P(); }};
+/* ───────── equipment schedule ───────── */
+const SCHED_FIELDS = ['step','label','type','volt','volt2','rating','sub','state','hold','action','verify','by','witness'];
+function openSchedule() {
+  $('#dlVolts').innerHTML = VOLTS.map(v => `<option value="${v}">`).join(''); $('#dlAmps').innerHTML = AMPS.map(v => `<option value="${v}">`).join(''); $('#dlKva').innerHTML = KVAS.map(v => `<option value="${v}">`).join('');
+  renderSchedule(); $('#dlgSched').showModal();
+}
+function renderSchedule() {
+  const rows = P().nodes.slice().sort((a, b) => (a.step || 999) - (b.step || 999) || a.label.localeCompare(b.label));
+  $('#schedCount').textContent = `${rows.filter(n => !TYPES[n.type].proc).length} devices · ${seq().length} steps`;
+  const typeOpts = n => DRAWN.filter(t => !TYPES[t].hidden || t === n.type).map(t => `<option value="${t}"${t === n.type ? ' selected' : ''}>${TYPES[t].name}</option>`).join('');
+  $('#schedTable').innerHTML = `<thead><tr><th>Step</th><th>Tag</th><th>Symbol</th><th>Voltage</th><th>Secondary</th><th>Rating</th><th>Note</th><th>State</th><th>Hold</th><th>Action</th><th>Verify before next step</th><th>By</th><th>Witness</th><th></th></tr></thead><tbody>` +
+    rows.map(n => { const isP = TYPES[n.type].proc, xf = XF.has(n.type); return `<tr data-id="${n.id}" class="${isP ? 'proc' : ''}">
+      <td><input class="n" type="number" min="0" data-f="step" value="${n.step}" aria-label="Step"></td>
+      <td><input class="t" type="text" data-f="label" value="${esc(n.label)}" aria-label="Tag"></td>
+      <td>${isP ? 'Procedure step' : `<select data-f="type" aria-label="Symbol">${typeOpts(n)}</select>`}</td>
+      <td>${isP ? '' : `<input class="v" type="text" list="dlVolts" data-f="volt" value="${esc(n.volt)}" aria-label="Voltage">`}</td>
+      <td>${xf ? `<input class="v" type="text" list="dlVolts" data-f="volt2" value="${esc(n.volt2)}" aria-label="Secondary voltage">` : ''}</td>
+      <td>${isP ? '' : xf ? `<input class="v" type="text" list="dlKva" data-f="kva" value="${esc(n.kva)}" placeholder="kVA" aria-label="kVA">` : `<input class="v" type="text" list="dlAmps" data-f="amps" value="${esc(n.amps)}" aria-label="Current rating">`}</td>
+      <td><input class="p" type="text" data-f="sub" value="${esc(n.sub)}" aria-label="Note"></td>
+      <td>${STATEFUL.has(n.type) ? `<select data-f="state" aria-label="State">${STATES.map(([v, t]) => `<option value="${v}"${(n.state || 'open') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>` : ''}</td>
+      <td><input type="checkbox" data-f="hold"${n.hold ? ' checked' : ''} aria-label="Hold point"></td>
+      <td><input class="w" type="text" data-f="action" value="${esc(n.action)}" aria-label="Action"></td>
+      <td><input class="w" type="text" data-f="verify" value="${esc(n.verify)}" aria-label="Verify"></td>
+      <td><input class="p" type="text" data-f="by" value="${esc(n.by)}" aria-label="By"></td>
+      <td><input class="p" type="text" data-f="witness" value="${esc(n.witness)}" aria-label="Witness"></td>
+      <td>${isP ? '' : '<button class="go" data-go="1" title="Show on drawing">Go</button>'}</td></tr>`; }).join('') + '</tbody>';
+}
+{ let typing = false; const tcommit = () => { if (!typing) { commit(); typing = true; setTimeout(() => typing = false, 1500); } };
+  $('#schedTable').addEventListener('input', e => { const t = e.target, f = t.dataset.f; if (!f || t.type === 'checkbox' || t.tagName === 'SELECT' || f === 'step') return; const n = node(t.closest('tr').dataset.id); if (!n) return; tcommit(); n[f] = f === 'amps' ? NORM.amps(t.value.trim()) : f === 'kva' ? NORM.kva(t.value.trim()) : (f === 'volt' || f === 'volt2') ? NORM.volt(t.value.trim()) : t.value; changed({keepInsp: true}); });
+  $('#schedTable').addEventListener('change', e => { const t = e.target, f = t.dataset.f; if (!f) return; const n = node(t.closest('tr').dataset.id); if (!n) return;
+    if (f === 'step') { const k = parseInt(t.value); if (isNaN(k)) return; commit(); setStepPos(n, k); changed(); renderSchedule(); }
+    else if (f === 'hold') { commit(); n.hold = t.checked; changed(); }
+    else if (f === 'state') { commit(); n.state = t.value; changed(); }
+    else if (f === 'type') { commit(); n.type = t.value; if (XF.has(n.type)) n.amps = ''; else { n.kva = ''; n.volt2 = ''; } n.state = STATEFUL.has(n.type) ? (n.state || 'open') : ''; changed(); renderSchedule(); }
+    else if (['amps', 'kva', 'volt', 'volt2'].includes(f)) { t.value = n[f]; }
+  });
+  $('#schedTable').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (!b) return; const n = node(b.closest('tr').dataset.id); $('#dlgSched').close(); S.sel = {kind: 'node', id: n.id}; renderAll(); centerOn(n); });
+}
+function scheduleCSV() {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const head = ['Step', 'Tag', 'Symbol', 'Voltage', 'Secondary voltage', 'Rating', 'Note', 'State', 'Hold point', 'Action', 'Verify before next step', 'By', 'Witness'];
+  const rows = P().nodes.slice().sort((a, b) => (a.step || 999) - (b.step || 999) || a.label.localeCompare(b.label));
+  return [head.map(q).join(',')].concat(rows.map(n => [n.step || '', n.label, TYPES[n.type].name, n.volt, n.volt2, ratingText(n), n.sub, STATEFUL.has(n.type) ? (n.state || 'open') : '', n.hold ? 'Yes' : '', n.action, n.verify, n.by, n.witness].map(q).join(','))).join('\r\n');
+}
+/* ───────── toast ───────── */
+let toastT; function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400); }
+
+/* ───────── boot ───────── */
+async function start(hot) {
+  if (hot && hot.project) { S.project = normalize(hot.project); S.view = hot.view || S.view; S.sel = hot.sel || null; S.walk = hot.walk || S.walk; }
+  else S.project = templateProject();
+  renderAll(); if (!hot || !hot.view) fitView();
+  setStatus('Connecting storage…');
+  await store.init();
+  S.list = await store.list();
+  try { S.templates = await store.listTemplates(); } catch {} renderTemplates();
+  const dlOff = false; $('#exportSheet').querySelectorAll('[data-exp$="-dl"]').forEach(b => { if (dlOff) { b.disabled = true; b.title = 'Downloads are not available in this view'; } });
+  if (!hot || !hot.project) {
+    if (S.list.length) { const p = await store.get(S.list[0].id); if (p) { S.project = p; S.sel = null; renderAll(); fitView(); } }
+  }
+  renderProjectSelect();
+  const saved = S.list.some(x => x.id === P().id);
+  setStatus(S.readOnly ? 'View only: edits stay on this device' : store.usesDb() ? (saved ? 'Saved' : 'Template loaded (saves on first edit)') : (saved ? 'Saved on this device' : 'Template loaded (saves on this device on first edit)'));
+  window.addEventListener('resize', () => renderCanvas());
+}
+if (window.claude && window.claude.hot && typeof window.claude.hot.snapshot === 'function') window.claude.hot.snapshot(() => ({project: P(), view: S.view, sel: S.sel, walk: S.walk}));
+const hotData = window.claude && window.claude.hot ? window.claude.hot.data : null;
+if (window.claude && window.claude.hot && typeof window.claude.hot.ready === 'function') window.claude.hot.ready(start); else start(hotData || {});
+})();
+</script>
+
+<script>
+(() => {
+  const banner = (html, actions) => { const old = document.querySelector('.appbanner'); if (old) old.remove(); const d = document.createElement('div'); d.className = 'appbanner'; d.setAttribute('role', 'status'); d.innerHTML = html; actions.forEach(([label, fn, cls]) => { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.onclick = () => { fn(); d.remove(); }; d.appendChild(b); }); document.body.appendChild(d); return d; };
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => { const w = reg.installing; if (!w) return; w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) banner('A new version is ready.', [['Reload', () => location.reload()], ['Later', () => {}, 'x']]); }); });
+      setInterval(() => reg.update().catch(() => {}), 6 * 3600 * 1000);
+    }).catch(() => {});
+  }
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let deferred = null; const btn = document.getElementById('installBtn');
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; if (btn && !standalone) btn.hidden = false; });
+  if (btn) btn.onclick = async () => { if (!deferred) return; deferred.prompt(); try { await deferred.userChoice; } catch {} deferred = null; btn.hidden = true; };
+  window.addEventListener('appinstalled', () => { if (btn) btn.hidden = true; });
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let seen = false; try { seen = localStorage.getItem('eol.iosHint') === '1'; } catch {}
+  if (ios && !standalone && !seen && location.protocol.startsWith('http')) setTimeout(() => banner('Install on your iPhone or iPad: tap Share, then Add to Home Screen.', [['Got it', () => { try { localStorage.setItem('eol.iosHint', '1'); } catch {} }]]), 2500);
+})();
+</script>
+</body>
+</html>
